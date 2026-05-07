@@ -62,6 +62,14 @@ function formatDualTimezone(isoString) {
   return `UTC ${utc}\n서울 ${seoul}`;
 }
 
+function formatReportTitle(symbol) {
+  if (symbol === "BTCUSDT") {
+    return "비트코인";
+  }
+
+  return symbol || "암호화폐";
+}
+
 function setList(id, items, emptyText) {
   const element = document.getElementById(id);
   if (element) {
@@ -233,7 +241,7 @@ async function loadPage() {
   const chartData = await chartResponse.json();
 
   const symbol = latest.symbol || "BTCUSDT";
-  document.getElementById("page-title").textContent = `${symbol} Multi-Timeframe Report`;
+  document.getElementById("page-title").textContent = formatReportTitle(symbol);
   setText("summary", formatReadableParagraphs(latest.summary));
   setText("updated-at", formatDualTimezone(latest.updated_at));
   setText("daily-view", formatReadableParagraphs(latest.daily_view));
