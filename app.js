@@ -74,6 +74,21 @@ function scenarioTargets(label, values) {
   return `${label}: ${values.join(" / ")}`;
 }
 
+function formatPercentFromLevels(side, entryPrice, targetPrice) {
+  const entry = Number(String(entryPrice || "").replace(/,/g, ""));
+  const target = Number(String(targetPrice || "").replace(/,/g, ""));
+  if (!Number.isFinite(entry) || !Number.isFinite(target) || entry === 0) {
+    return "";
+  }
+
+  const ratio = side === "short"
+    ? ((entry - target) / entry) * 100
+    : ((target - entry) / entry) * 100;
+
+  const sign = ratio > 0 ? "+" : "";
+  return ` (${sign}${ratio.toFixed(2)}%)`;
+}
+
 function buildRuleText(idea) {
   const price = idea.trigger_price ?? idea.entry_price ?? "-";
   const timeframeMap = {
@@ -108,6 +123,8 @@ function renderStrategyIdeas(items) {
   element.innerHTML = ideas.map((idea) => {
     const naturalText = idea.trigger_text_natural || idea.trigger_text || FALLBACK_TEXT;
     const ruleText = buildRuleText(idea);
+    const stopPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.stop_price);
+    const takeProfitPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.take_profit);
     return `
     <div class="strategy-item ${idea.side || "wait"}">
       <h3>${idea.label || "전략 아이디어"}</h3>
@@ -115,8 +132,8 @@ function renderStrategyIdeas(items) {
       <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
       <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
-      <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}`)}</p>
-      <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}`)}</p>
+      <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}${stopPercent}`)}</p>
+      <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}${takeProfitPercent}`)}</p>
       <p>${formatReadableParagraphs(`메모: ${idea.rationale || FALLBACK_TEXT}`)}</p>
       <p>${formatReadableParagraphs(`평가 기준: ${idea.review_note || FALLBACK_TEXT}`)}</p>
     </div>
