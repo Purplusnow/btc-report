@@ -633,8 +633,10 @@ def update_history(latest_report: dict) -> list[dict]:
 
 def main() -> None:
     symbol = os.getenv("SYMBOL", "BTCUSDT")
-    now = datetime.now(tz=SEOUL).isoformat(timespec="seconds")
-    version = datetime.now(tz=SEOUL).strftime("%Y.%m.%d.%H.%M")
+    report_timestamp = os.getenv("REPORT_TIMESTAMP")
+    report_version = os.getenv("REPORT_VERSION")
+    now = report_timestamp or datetime.now(tz=SEOUL).isoformat(timespec="seconds")
+    version = report_version or datetime.now(tz=SEOUL).strftime("%Y.%m.%d.%H.%M")
     market_data = fetch_market_data(symbol)
     base_report = analyze_market(symbol, market_data)
     default_conclusion = (
