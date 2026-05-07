@@ -1,4 +1,5 @@
 const FALLBACK_TEXT = "데이터가 준비되면 이 영역이 자동으로 갱신됩니다.";
+const CHART_ERROR_TEXT = "차트 라이브러리 또는 데이터 로딩 문제로 시각화에 실패했습니다.";
 
 function formatList(items, emptyText = "데이터 대기 중") {
   if (!Array.isArray(items) || items.length === 0) {
@@ -57,93 +58,121 @@ function buildRsiSeries(dataPoints) {
     }));
 }
 
+function setChartError(container, message = CHART_ERROR_TEXT) {
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = `<div class="chart-empty">${message}</div>`;
+}
+
 function createChart(containerId, rsiContainerId, candles) {
   const priceContainer = document.getElementById(containerId);
   const rsiContainer = document.getElementById(rsiContainerId);
 
-  if (!priceContainer || !rsiContainer || !window.LightweightCharts) {
+  if (!priceContainer || !rsiContainer) {
     return;
   }
 
-  const commonLayout = {
-    layout: {
-      background: { color: "transparent" },
-      textColor: "#4f5660"
-    },
-    grid: {
-      vertLines: { color: "rgba(24, 33, 43, 0.06)" },
-      horzLines: { color: "rgba(24, 33, 43, 0.06)" }
-    },
-    rightPriceScale: {
-      borderColor: "rgba(24, 33, 43, 0.12)"
-    },
-    timeScale: {
-      borderColor: "rgba(24, 33, 43, 0.12)"
-    }
-  };
+  if (!window.LightweightCharts) {
+    setChartError(priceContainer, "차트 라이브러리를 불러오지 못했습니다.");
+    setChartError(rsiContainer, "RSI 차트를 불러오지 못했습니다.");
+    return;
+  }
 
-  const priceChart = LightweightCharts.createChart(priceContainer, {
-    ...commonLayout,
-    width: priceContainer.clientWidth,
-    height: priceContainer.clientHeight
-  });
+  if (!Array.isArray(candles) || candles.length === 0) {
+    setChartError(priceContainer, "가격 데이터가 아직 준비되지 않았습니다.");
+    setChartError(rsiContainer, "RSI 데이터가 아직 준비되지 않았습니다.");
+    return;
+  }
 
-  const candleSeries = priceChart.addCandlestickSeries({
-    upColor: "#1f7a5a",
-    downColor: "#b24b3f",
-    wickUpColor: "#1f7a5a",
-    wickDownColor: "#b24b3f",
-    borderVisible: false
-  });
-  candleSeries.setData(buildChartSeries(candles));
+  try {
+    const commonLayout = {
+      layout: {
+        background: { color: "transparent" },
+        textColor: "#4f5660"
+      },
+      grid: {
+        vertLines: { color: "rgba(24, 33, 43, 0.06)" },
+        horzLines: { color: "rgba(24, 33, 43, 0.06)" }
+      },
+      rightPriceScale: {
+        borderColor: "rgba(24, 33, 43, 0.12)"
+      },
+      timeScale: {
+        borderColor: "rgba(24, 33, 43, 0.12)"
+      }
+    };
 
-  const volumeSeries = priceChart.addHistogramSeries({
-    priceFormat: { type: "volume" },
-    priceScaleId: "",
-    scaleMargins: {
-      top: 0.78,
-      bottom: 0
-    }
-  });
-  volumeSeries.setData(buildVolumeSeries(candles));
-
-  const rsiChart = LightweightCharts.createChart(rsiContainer, {
-    ...commonLayout,
-    width: rsiContainer.clientWidth,
-    height: rsiContainer.clientHeight
-  });
-
-  const rsiSeries = rsiChart.addLineSeries({
-    color: "#143f6b",
-    lineWidth: 2
-  });
-  rsiSeries.setData(buildRsiSeries(candles));
-
-  const rsi70 = rsiChart.addLineSeries({
-    color: "rgba(178, 75, 63, 0.5)",
-    lineWidth: 1
-  });
-  const rsi30 = rsiChart.addLineSeries({
-    color: "rgba(31, 122, 90, 0.5)",
-    lineWidth: 1
-  });
-
-  const rangeLines = (candles || []).map((candle) => candle.time);
-  rsi70.setData(rangeLines.map((time) => ({ time, value: 70 })));
-  rsi30.setData(rangeLines.map((time) => ({ time, value: 30 })));
-
-  function resizeCharts() {
-    priceChart.applyOptions({
+    const priceChart = LightweightCharts.createChart(priceContainer, {
+      ...commonLayout,
       width: priceContainer.clientWidth,
       height: priceContainer.clientHeight
     });
-    rsiChart.applyOptions({
+
+    const candleSeries = priceChart.addCandlestickSeries({
+      upColor: "#1f7a5a",
+      downColor: "#b24b3f",
+      wickUpColor: "#1f7a5a",
+      wickDownColor: "#b24b3f",
+      borderVisible: false
+    });
+    candleSeries.setData(buildChartSeries(candles));
+
+    const volumeSeries = priceChart.addHistogramSeries({
+      priceFormat: { type: "volume" },
+      priceScaleId: "",
+      scaleMargins: {
+        top: 0.78,
+        bottom: 0
+      }
+    });
+    volumeSeries.setData(buildVolumeSeries(candles));
+    priceChart.timeScale().fitContent();
+
+    const rsiChart = LightweightCharts.createChart(rsiContainer, {
+      ...commonLayout,
       width: rsiContainer.clientWidth,
       height: rsiContainer.clientHeight
     });
-  }
 
-  window.addEventListener("resize", resizeCharts);
+    const rsiSeries = rsiChart.addLineSeries({
+      color: "#143f6b",
+      lineWidth: 2
+    });
+    rsiSeries.setData(buildRsiSeries(candles));
+
+    const rsi70 = rsiChart.addLineSeries({
+      color: "rgba(178, 75, 63, 0.5)",
+      lineWidth: 1
+    });
+    const rsi30 = rsiChart.addLineSeries({
+      color: "rgba(31, 122, 90, 0.5)",
+      lineWidth: 1
+    });
+
+    const rangeLines = candles.map((candle) => candle.time);
+    rsi70.setData(rangeLines.map((time) => ({ time, value: 70 })));
+    rsi30.setData(rangeLines.map((time) => ({ time, value: 30 })));
+    rsiChart.timeScale().fitContent();
+
+    function resizeCharts() {
+      priceChart.applyOptions({
+        width: priceContainer.clientWidth,
+        height: priceContainer.clientHeight
+      });
+      rsiChart.applyOptions({
+        width: rsiContainer.clientWidth,
+        height: rsiContainer.clientHeight
+      });
+    }
+
+    window.addEventListener("resize", resizeCharts);
+  } catch (error) {
+    console.error(`Failed to render chart for ${containerId}.`, error);
+    setChartError(priceContainer);
+    setChartError(rsiContainer, "RSI 차트 렌더링에 실패했습니다.");
+  }
 }
 
 async function loadPage() {
@@ -212,4 +241,3 @@ async function loadPage() {
 loadPage().catch((error) => {
   console.error("Failed to load report data.", error);
 });
-
