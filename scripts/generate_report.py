@@ -23,6 +23,7 @@ DATA_DIR = ROOT_DIR / "data"
 SEOUL = ZoneInfo("Asia/Seoul")
 STARTING_BALANCE = 1000.0
 STRATEGY_EXPIRY_HOURS = 48
+MIN_RISK_REWARD = 1.8
 
 
 def load_style_guide() -> str:
@@ -117,6 +118,22 @@ def compute_return_pct(side: str, entry_price: float | None, exit_price: float |
     return 0.0
 
 
+def compute_risk_reward(side: str, entry_price: float | None, stop_price: float | None, take_profit_price: float | None) -> float:
+    if entry_price is None or stop_price is None or take_profit_price is None:
+        return 0.0
+
+    if side == "long":
+        risk = entry_price - stop_price
+        reward = take_profit_price - entry_price
+    else:
+        risk = stop_price - entry_price
+        reward = entry_price - take_profit_price
+
+    if risk <= 0:
+        return 0.0
+    return max(reward / risk, 0.0)
+
+
 def pick_take_profit(side: str, entry_price: float | None, stop_price: float | None, targets: list[str]) -> str:
     parsed_targets = []
     for target in targets:
@@ -124,23 +141,23 @@ def pick_take_profit(side: str, entry_price: float | None, stop_price: float | N
         if value is not None:
             parsed_targets.append((target, value))
 
-    if entry_price is not None:
+    if entry_price is not None and stop_price is not None:
         if side == "long":
             for raw, value in parsed_targets:
-                if value > entry_price:
+                if value > entry_price and compute_risk_reward(side, entry_price, stop_price, value) >= MIN_RISK_REWARD:
                     return raw
         elif side == "short":
             for raw, value in parsed_targets:
-                if value < entry_price:
+                if value < entry_price and compute_risk_reward(side, entry_price, stop_price, value) >= MIN_RISK_REWARD:
                     return raw
 
     if entry_price is not None and stop_price is not None:
         risk = abs(entry_price - stop_price)
         if risk > 0:
             if side == "long":
-                return f"{entry_price + risk * 1.5:,.2f}"
+                return f"{entry_price + risk * MIN_RISK_REWARD:,.2f}"
             if side == "short":
-                return f"{entry_price - risk * 1.5:,.2f}"
+                return f"{entry_price - risk * MIN_RISK_REWARD:,.2f}"
 
     return targets[0] if targets else ""
 
@@ -274,6 +291,8 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     entry_price_value = parse_price(trigger_token)
     stop_price_value = parse_price(stop_token)
     take_profit = pick_take_profit(best_side, entry_price_value, stop_price_value, targets)
+    take_profit_value = parse_price(take_profit)
+    risk_reward = compute_risk_reward(best_side, entry_price_value, stop_price_value, take_profit_value)
     review_note = build_strategy_review(base_report)
     return [
         {
@@ -300,8 +319,9 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "expiry_hours": STRATEGY_EXPIRY_HOURS,
             "targets": targets,
             "take_profit": take_profit,
+            "risk_reward": round(risk_reward, 2),
             "stop_price": stop_token,
-            "rationale": f"{chosen.get('probability_comment', '')} {confidence_note}".strip(),
+            "rationale": f"{chosen.get('probability_comment', '')} {confidence_note} 목표가는 최소 손익비 {MIN_RISK_REWARD:.1f}:1 기준을 우선 반영합니다.".strip(),
             "opened_at": None,
             "closed_at": None,
             "review_note": review_note,

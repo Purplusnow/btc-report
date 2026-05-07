@@ -195,6 +195,7 @@ function renderStrategyIdeas(items) {
     const cancelDisplayText = buildCancelDisplayText(idea);
     const stopPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.stop_price);
     const takeProfitPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.take_profit);
+    const riskRewardText = idea.risk_reward ? `${Number(idea.risk_reward).toFixed(2)} : 1` : "-";
     const expiryHours = idea.expiry_hours || 48;
     const createdAtText = formatSeoulTime(idea.created_at);
     const remainingTime = formatRemainingTime(idea.created_at, expiryHours);
@@ -210,6 +211,7 @@ function renderStrategyIdeas(items) {
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}${stopPercent}`)}</p>
       <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}${takeProfitPercent}`)}</p>
+      <p>${formatReadableParagraphs(`손익비: ${riskRewardText}`)}</p>
       <p>${formatReadableParagraphs(`메모: ${idea.rationale || FALLBACK_TEXT}`)}</p>
       <p>${formatReadableParagraphs(`평가 기준: ${idea.review_note || FALLBACK_TEXT}`)}</p>
     </div>
@@ -267,6 +269,7 @@ function renderStrategyHistory(items, targetId = "strategy-history-list", limit 
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
       <p>${item.direction_label || "-"} · 진입 ${item.entry_price || "-"} / 손절 ${item.stop_price || "-"} / 익절 ${item.take_profit || "-"}</p>
+      <p>손익비 ${item.risk_reward ? Number(item.risk_reward).toFixed(2) : "-"} : 1</p>
       <p>잔고 $${Number(item.balance_before ?? 0).toFixed(2)} → $${Number(item.balance_after ?? 0).toFixed(2)} / 손익 $${Number(item.pnl_amount ?? 0).toFixed(2)}</p>
       <p>${item.outcome_note || item.trigger_text || FALLBACK_TEXT}</p>
     </li>
