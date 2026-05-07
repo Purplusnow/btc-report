@@ -16,6 +16,17 @@ function setText(id, value) {
   }
 }
 
+function formatReadableParagraphs(value) {
+  if (!value || typeof value !== "string") {
+    return value;
+  }
+
+  return value
+    .replace(/([.!?])\s+/g, "$1\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function formatDualTimezone(isoString) {
   if (!isoString) {
     return "-";
@@ -223,32 +234,32 @@ async function loadPage() {
 
   const symbol = latest.symbol || "BTCUSDT";
   document.getElementById("page-title").textContent = `${symbol} Multi-Timeframe Report`;
-  setText("summary", latest.summary);
+  setText("summary", formatReadableParagraphs(latest.summary));
   setText("updated-at", formatDualTimezone(latest.updated_at));
-  setText("daily-view", latest.daily_view);
-  setText("h4-view", latest.h4_view);
-  setText("h1-view", latest.h1_view);
-  setText("conclusion", latest.conclusion);
+  setText("daily-view", formatReadableParagraphs(latest.daily_view));
+  setText("h4-view", formatReadableParagraphs(latest.h4_view));
+  setText("h1-view", formatReadableParagraphs(latest.h1_view));
+  setText("conclusion", formatReadableParagraphs(latest.conclusion));
   setText("disclaimer", latest.disclaimer);
 
   setList("support-levels", latest.key_levels?.support, "분석 대기 중");
   setList("resistance-levels", latest.key_levels?.resistance, "분석 대기 중");
   setList("invalidation-levels", latest.key_levels?.invalidations, "분석 대기 중");
 
-  setText("bullish-condition", `조건: ${latest.scenarios?.bullish?.condition || FALLBACK_TEXT}`);
+  setText("bullish-condition", formatReadableParagraphs(`조건: ${latest.scenarios?.bullish?.condition || FALLBACK_TEXT}`));
   setText("bullish-targets", scenarioTargets("목표", latest.scenarios?.bullish?.targets));
-  setText("bullish-invalidation", `무효화: ${latest.scenarios?.bullish?.invalidation || FALLBACK_TEXT}`);
-  setText("bullish-probability", `평가: ${latest.scenarios?.bullish?.probability_comment || FALLBACK_TEXT}`);
+  setText("bullish-invalidation", formatReadableParagraphs(`무효화: ${latest.scenarios?.bullish?.invalidation || FALLBACK_TEXT}`));
+  setText("bullish-probability", formatReadableParagraphs(`평가: ${latest.scenarios?.bullish?.probability_comment || FALLBACK_TEXT}`));
 
-  setText("bearish-condition", `조건: ${latest.scenarios?.bearish?.condition || FALLBACK_TEXT}`);
+  setText("bearish-condition", formatReadableParagraphs(`조건: ${latest.scenarios?.bearish?.condition || FALLBACK_TEXT}`));
   setText("bearish-targets", scenarioTargets("목표", latest.scenarios?.bearish?.targets));
-  setText("bearish-invalidation", `무효화: ${latest.scenarios?.bearish?.invalidation || FALLBACK_TEXT}`);
-  setText("bearish-probability", `평가: ${latest.scenarios?.bearish?.probability_comment || FALLBACK_TEXT}`);
+  setText("bearish-invalidation", formatReadableParagraphs(`무효화: ${latest.scenarios?.bearish?.invalidation || FALLBACK_TEXT}`));
+  setText("bearish-probability", formatReadableParagraphs(`평가: ${latest.scenarios?.bearish?.probability_comment || FALLBACK_TEXT}`));
 
-  setText("neutral-condition", `조건: ${latest.scenarios?.neutral?.condition || FALLBACK_TEXT}`);
+  setText("neutral-condition", formatReadableParagraphs(`조건: ${latest.scenarios?.neutral?.condition || FALLBACK_TEXT}`));
   setText("neutral-range", scenarioTargets("범위", latest.scenarios?.neutral?.range));
-  setText("neutral-invalidation", `무효화: ${latest.scenarios?.neutral?.invalidation || FALLBACK_TEXT}`);
-  setText("neutral-probability", `평가: ${latest.scenarios?.neutral?.probability_comment || FALLBACK_TEXT}`);
+  setText("neutral-invalidation", formatReadableParagraphs(`무효화: ${latest.scenarios?.neutral?.invalidation || FALLBACK_TEXT}`));
+  setText("neutral-probability", formatReadableParagraphs(`평가: ${latest.scenarios?.neutral?.probability_comment || FALLBACK_TEXT}`));
 
   const historyList = document.getElementById("history-list");
   historyList.innerHTML = "";
@@ -259,7 +270,7 @@ async function loadPage() {
     li.innerHTML = `
       <span class="history-meta">${formatDualTimezone(item.updated_at)}</span>
       <strong>${item.symbol || symbol}</strong>
-      <p>${item.summary || FALLBACK_TEXT}</p>
+      <p>${formatReadableParagraphs(item.summary || FALLBACK_TEXT)}</p>
     `;
     historyList.appendChild(li);
   });
