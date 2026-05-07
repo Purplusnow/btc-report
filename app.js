@@ -59,7 +59,7 @@ function formatDualTimezone(isoString) {
     timeZone: "Asia/Seoul"
   }).format(parsed).replace(",", "");
 
-  return `UTC ${utc} | 서울 ${seoul}`;
+  return `UTC ${utc}\n서울 ${seoul}`;
 }
 
 function setList(id, items, emptyText) {
