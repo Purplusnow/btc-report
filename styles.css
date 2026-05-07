@@ -144,6 +144,13 @@ h1 {
   letter-spacing: 0.12em;
 }
 
+.meta-version {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .section-heading {
   margin: 22px 0 14px;
   color: var(--muted);

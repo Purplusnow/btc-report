@@ -51,6 +51,30 @@ function formatSeoulTime(isoString) {
   return `서울 ${seoul}`;
 }
 
+function formatVersion(isoString) {
+  if (!isoString) {
+    return "-";
+  }
+
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) {
+    return isoString;
+  }
+
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul"
+  }).formatToParts(parsed);
+
+  const map = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${map.year}.${map.month}.${map.day}.${map.hour}.${map.minute}`;
+}
+
 function formatReportTitle(symbol) {
   if (symbol === "BTCUSDT") {
     return "비트코인";
@@ -415,6 +439,7 @@ async function loadPage() {
   document.getElementById("page-title").textContent = formatReportTitle(symbol);
   setText("summary", formatReadableParagraphs(latest.summary));
   setText("updated-at", formatSeoulTime(latest.updated_at));
+  setText("report-version", `버전 ${latest.version || formatVersion(latest.updated_at)}`);
   setText("daily-view", formatReadableParagraphs(latest.daily_view));
   setText("h4-view", formatReadableParagraphs(latest.h4_view));
   setText("h1-view", formatReadableParagraphs(latest.h1_view));
