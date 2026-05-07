@@ -325,6 +325,12 @@ li + li {
   margin-top: 6px;
 }
 
+.metric-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .scenario-card {
   padding: 16px;
   border-radius: 18px;
@@ -421,5 +427,21 @@ li + li {
 
   .chart-rsi {
     height: 150px;
+  }
+
+  .metric-row {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    padding: 12px;
+  }
+
+  .metric-card strong {
+    font-size: 1.18rem;
+  }
+
+  .metric-card span {
+    font-size: 0.82rem;
   }
 }
