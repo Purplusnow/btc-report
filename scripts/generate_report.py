@@ -128,6 +128,29 @@ def pick_take_profit(side: str, entry_price: float | None, stop_price: float | N
     return targets[0] if targets else ""
 
 
+def build_structured_trigger(side: str, chosen: dict) -> dict:
+    trigger_token = extract_first_price(chosen.get("condition", ""))
+    trigger_price = parse_price(trigger_token)
+    if side == "long":
+        return {
+            "trigger_price_text": trigger_token,
+            "trigger_price": trigger_price,
+            "trigger_timeframe": "4h",
+            "trigger_type": "close_above",
+            "confirmation_bars": 1,
+            "trigger_text": f"4시간봉 종가가 {trigger_token} 위에서 1개 봉 마감하면 진입",
+        }
+
+    return {
+        "trigger_price_text": trigger_token,
+        "trigger_price": trigger_price,
+        "trigger_timeframe": "1h",
+        "trigger_type": "close_below",
+        "confirmation_bars": 1,
+        "trigger_text": f"1시간봉 종가가 {trigger_token} 아래에서 1개 봉 마감하면 진입",
+    }
+
+
 def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict, str]:
     daily = base_report["meta"]["timeframes"]["1d"]
     h4 = base_report["meta"]["timeframes"]["4h"]
@@ -206,7 +229,8 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
         "short": "하락 우세",
     }
 
-    trigger_token = extract_first_price(chosen.get("condition", ""))
+    trigger = build_structured_trigger(best_side, chosen)
+    trigger_token = trigger["trigger_price_text"]
     stop_token = extract_first_price(chosen.get("invalidation", ""))
     targets = chosen.get("targets", chosen.get("range", []))
     entry_price_value = parse_price(trigger_token)
@@ -224,8 +248,11 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "status": "pending",
             "status_label": "대기중",
             "entry_price": trigger_token,
-            "trigger_price": parse_price(trigger_token),
-            "trigger_text": chosen.get("condition", ""),
+            "trigger_price": trigger["trigger_price"],
+            "trigger_timeframe": trigger["trigger_timeframe"],
+            "trigger_type": trigger["trigger_type"],
+            "confirmation_bars": trigger["confirmation_bars"],
+            "trigger_text": trigger["trigger_text"],
             "targets": targets,
             "take_profit": take_profit,
             "stop_price": stop_token,
@@ -238,23 +265,39 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     ]
 
 
-def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
+def trigger_satisfied(strategy: dict, market_data: dict[str, list[dict]]) -> tuple[bool, str | None]:
+    timeframe = strategy.get("trigger_timeframe", "1h")
+    trigger_type = strategy.get("trigger_type")
+    trigger_price = strategy.get("trigger_price")
+    confirmation_bars = int(strategy.get("confirmation_bars", 1) or 1)
+    created_ts = int(datetime.fromisoformat(strategy["created_at"]).timestamp())
+    candles = market_data.get(timeframe, [])
+    relevant = [candle for candle in candles if candle["open_time"] // 1000 >= created_ts]
+
+    if trigger_price is None or trigger_type not in {"close_above", "close_below"}:
+        return False, None
+
+    streak = 0
+    for candle in relevant:
+        close_price = candle["close"]
+        matched = close_price > trigger_price if trigger_type == "close_above" else close_price < trigger_price
+        streak = streak + 1 if matched else 0
+        if streak >= confirmation_bars:
+            opened_at = datetime.fromtimestamp(candle["close_time"] // 1000, tz=SEOUL).isoformat(timespec="seconds")
+            return True, opened_at
+
+    return False, None
+
+
+def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: str) -> dict:
     updated = deepcopy(strategy)
     side = updated.get("side")
-    trigger_price = updated.get("trigger_price")
     stop_price = parse_price(updated.get("stop_price"))
     target_price = parse_price(updated.get("take_profit") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
     entry_price = parse_price(updated.get("entry_price"))
     created_ts = int(datetime.fromisoformat(updated["created_at"]).timestamp())
     now_dt = datetime.fromisoformat(now)
-    if side == "wait":
-        created_dt = datetime.fromisoformat(updated["created_at"])
-        if (now_dt - created_dt).total_seconds() >= 24 * 3600:
-            updated["status"] = "expired"
-            updated["status_label"] = "만료"
-        return updated
-
-    relevant = [candle for candle in candles if candle["open_time"] // 1000 >= created_ts]
+    relevant = [candle for candle in market_data["1h"] if candle["open_time"] // 1000 >= created_ts]
     opened = updated.get("opened_at") is not None
 
     for candle in relevant:
@@ -263,13 +306,9 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
         low = candle["low"]
 
         if not opened:
-            if side == "long" and trigger_price is not None and high >= trigger_price:
-                updated["opened_at"] = candle_time
-                updated["status"] = "open"
-                updated["status_label"] = "진행중"
-                opened = True
-            elif side == "short" and trigger_price is not None and low <= trigger_price:
-                updated["opened_at"] = candle_time
+            is_triggered, opened_at = trigger_satisfied(updated, market_data)
+            if is_triggered and opened_at:
+                updated["opened_at"] = opened_at
                 updated["status"] = "open"
                 updated["status_label"] = "진행중"
                 opened = True
@@ -365,7 +404,7 @@ def update_strategy_history(base_report: dict, latest_report: dict, market_data:
 
     now = latest_report["updated_at"]
     updated_history = [
-        evaluate_strategy(item, market_data["1h"], now)
+        evaluate_strategy(item, market_data, now)
         if item.get("status") in {"pending", "open"} else item
         for item in history
     ]
