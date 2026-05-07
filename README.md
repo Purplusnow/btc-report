@@ -1,6 +1,6 @@
-# crypto-report
+# btc-report
 
-`crypto-report` is a GitHub Pages project that publishes an hourly Korean crypto market report.
+`btc-report` is a GitHub Pages project that publishes an hourly Korean crypto market report.
 
 The initial MVP focuses on `BTCUSDT`, but the code is organized so additional symbols can be added later.
 
@@ -15,7 +15,7 @@ The initial MVP focuses on `BTCUSDT`, but the code is organized so additional sy
 ## Project structure
 
 ```text
-crypto-report/
+btc-report/
 ├─ index.html
 ├─ styles.css
 ├─ app.js
@@ -49,4 +49,3 @@ python scripts/generate_report.py
 ```
 
 The generated files are written into `data/`.
-
