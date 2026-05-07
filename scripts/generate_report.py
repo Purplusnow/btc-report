@@ -90,6 +90,22 @@ def build_strategy_review(base_report: dict) -> str:
     )
 
 
+def strategy_signature(strategy: dict) -> str:
+    return "|".join(
+        [
+            strategy.get("symbol", ""),
+            strategy.get("side", ""),
+            str(strategy.get("entry_price", "")),
+            str(strategy.get("stop_price", "")),
+            str(strategy.get("take_profit", "")),
+            str(strategy.get("trigger_timeframe", "")),
+            str(strategy.get("trigger_type", "")),
+            str(strategy.get("trigger_price", "")),
+            str(strategy.get("confirmation_bars", "")),
+        ]
+    )
+
+
 def compute_return_pct(side: str, entry_price: float | None, exit_price: float | None) -> float:
     if entry_price is None or exit_price is None or entry_price == 0:
         return 0.0
@@ -262,6 +278,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "closed_at": None,
             "review_note": review_note,
             "outcome_note": "",
+            "signature": "",
         },
     ]
 
@@ -409,7 +426,30 @@ def update_strategy_history(base_report: dict, latest_report: dict, market_data:
         if item.get("status") in {"pending", "open"} else item
         for item in history
     ]
-    updated_history = build_strategy_ideas(base_report, latest_report) + updated_history
+    new_ideas = build_strategy_ideas(base_report, latest_report)
+    for idea in new_ideas:
+        idea["signature"] = strategy_signature(idea)
+
+    normalized_history = []
+    seen_signatures = set()
+    for item in updated_history:
+        item_signature = item.get("signature") or strategy_signature(item)
+        item["signature"] = item_signature
+        is_active = item.get("status") in {"pending", "open"}
+        if is_active and item_signature in seen_signatures:
+            continue
+        if is_active:
+            seen_signatures.add(item_signature)
+        normalized_history.append(item)
+
+    active_signatures = {
+        item["signature"]
+        for item in normalized_history
+        if item.get("status") in {"pending", "open"}
+    }
+    ideas_to_add = [idea for idea in new_ideas if idea["signature"] not in active_signatures]
+
+    updated_history = ideas_to_add + normalized_history
     updated_history = updated_history[:120]
     return apply_balance_curve(updated_history)
 

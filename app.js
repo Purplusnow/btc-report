@@ -141,45 +141,13 @@ function renderStrategyIdeas(items) {
   }).join("");
 }
 
-function dedupeStrategyHistory(items) {
-  const history = Array.isArray(items) ? items : [];
-  const deduped = [];
-  const seen = new Set();
-
-  history.forEach((item) => {
-    const key = [
-      item.symbol || "",
-      item.direction_label || "",
-      item.entry_price || "",
-      item.stop_price || "",
-      item.take_profit || "",
-      item.status || ""
-    ].join("|");
-
-    if (!seen.has(key)) {
-      seen.add(key);
-      deduped.push(item);
-    }
-  });
-
-  return deduped;
-}
-
-function renderStrategyMetrics(summary, items = []) {
+function renderStrategyMetrics(summary) {
   const element = document.getElementById("strategy-metrics");
   if (!element) {
     return;
   }
 
   const stats = summary || {};
-  const deduped = dedupeStrategyHistory(items);
-  const dedupedWins = deduped.filter((item) => item.status === "won").length;
-  const dedupedLosses = deduped.filter((item) => item.status === "lost").length;
-  const dedupedPending = deduped.filter((item) => item.status === "pending").length;
-  const dedupedOpen = deduped.filter((item) => item.status === "open").length;
-  const dedupedExpired = deduped.filter((item) => item.status === "expired").length;
-  const dedupedClosed = dedupedWins + dedupedLosses;
-  const dedupedWinRate = dedupedClosed ? `${((dedupedWins / dedupedClosed) * 100).toFixed(1)}%` : "0.0%";
 
   element.innerHTML = `
     <div class="metric-row">
@@ -189,13 +157,13 @@ function renderStrategyMetrics(summary, items = []) {
     </div>
     <div class="metric-row">
       <div class="metric-card"><span>수익률</span><strong>${stats.cumulative_return_pct || "0.00%"}</strong></div>
-      <div class="metric-card"><span>승률</span><strong>${dedupedWinRate}</strong></div>
-      <div class="metric-card"><span>승 / 패</span><strong>${dedupedWins} / ${dedupedLosses}</strong></div>
+      <div class="metric-card"><span>승률</span><strong>${stats.win_rate || "0.0%"}</strong></div>
+      <div class="metric-card"><span>승 / 패</span><strong>${stats.wins ?? 0} / ${stats.losses ?? 0}</strong></div>
     </div>
     <div class="metric-row">
-      <div class="metric-card"><span>대기</span><strong>${dedupedPending}</strong></div>
-      <div class="metric-card"><span>보유중</span><strong>${dedupedOpen}</strong></div>
-      <div class="metric-card"><span>만료</span><strong>${dedupedExpired}</strong></div>
+      <div class="metric-card"><span>대기</span><strong>${stats.pending ?? 0}</strong></div>
+      <div class="metric-card"><span>보유중</span><strong>${stats.open ?? 0}</strong></div>
+      <div class="metric-card"><span>만료</span><strong>${stats.expired ?? 0}</strong></div>
     </div>
   `;
 }
@@ -206,14 +174,14 @@ function renderStrategyHistory(items, targetId = "strategy-history-list", limit 
     return;
   }
 
-  const deduped = dedupeStrategyHistory(items);
+  const history = Array.isArray(items) ? items : [];
 
-  if (!deduped.length) {
+  if (!history.length) {
     element.innerHTML = `<li class="history-item">${FALLBACK_TEXT}</li>`;
     return;
   }
 
-  element.innerHTML = deduped.slice(0, limit).map((item) => `
+  element.innerHTML = history.slice(0, limit).map((item) => `
     <li class="history-item">
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
@@ -423,7 +391,7 @@ async function loadPage() {
   setText("conclusion", formatReadableParagraphs(latest.conclusion));
   setText("disclaimer", latest.disclaimer);
   renderStrategyIdeas(latest.strategy_ideas || []);
-  renderStrategyMetrics(latest.strategy_summary || {}, strategyHistory || []);
+  renderStrategyMetrics(latest.strategy_summary || {});
   renderStrategyHistory(strategyHistory || [], "strategy-history-list", 8);
   renderStrategyHistory(strategyHistory || [], "recent-strategy-list", 6);
 
