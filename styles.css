@@ -95,14 +95,6 @@ h1 {
   max-width: none;
 }
 
-.hero-subtitle {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 0.98rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .hero-badge {
   display: inline-flex;
   align-items: center;
@@ -353,10 +345,6 @@ li + li {
 
   .hero-heading-row {
     align-items: flex-start;
-  }
-
-  .hero-subtitle {
-    font-size: 0.9rem;
   }
 
   .chart-container {
