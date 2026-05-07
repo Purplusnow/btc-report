@@ -131,6 +131,7 @@ function renderStrategyIdeas(items) {
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
       <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
       <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
+      <p>${formatReadableParagraphs(`추천 취소 조건: ${idea.cancel_text || "-"}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}${stopPercent}`)}</p>
       <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}${takeProfitPercent}`)}</p>
@@ -163,7 +164,12 @@ function renderStrategyMetrics(summary) {
     <div class="metric-row">
       <div class="metric-card"><span>대기</span><strong>${stats.pending ?? 0}</strong></div>
       <div class="metric-card"><span>보유중</span><strong>${stats.open ?? 0}</strong></div>
+      <div class="metric-card"><span>취소</span><strong>${stats.canceled ?? 0}</strong></div>
+    </div>
+    <div class="metric-row">
       <div class="metric-card"><span>만료</span><strong>${stats.expired ?? 0}</strong></div>
+      <div class="metric-card"><span>총 전략</span><strong>${stats.total ?? 0}</strong></div>
+      <div class="metric-card"><span>진행 기준</span><strong>1회 1전략</strong></div>
     </div>
   `;
 }

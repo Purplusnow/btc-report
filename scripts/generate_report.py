@@ -167,6 +167,26 @@ def build_structured_trigger(side: str, chosen: dict) -> dict:
     }
 
 
+def build_cancel_rule(side: str, cancel_price_text: str) -> dict:
+    cancel_price = parse_price(cancel_price_text)
+    if side == "long":
+        return {
+            "cancel_price": cancel_price,
+            "cancel_price_text": cancel_price_text,
+            "cancel_timeframe": "1h",
+            "cancel_type": "close_below",
+            "cancel_text": f"1시간봉 종가가 {cancel_price_text} 아래에서 마감하면 추천 취소",
+        }
+
+    return {
+        "cancel_price": cancel_price,
+        "cancel_price_text": cancel_price_text,
+        "cancel_timeframe": "1h",
+        "cancel_type": "close_above",
+        "cancel_text": f"1시간봉 종가가 {cancel_price_text} 위에서 마감하면 추천 취소",
+    }
+
+
 def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict, str]:
     daily = base_report["meta"]["timeframes"]["1d"]
     h4 = base_report["meta"]["timeframes"]["4h"]
@@ -248,6 +268,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     trigger = build_structured_trigger(best_side, chosen)
     trigger_token = trigger["trigger_price_text"]
     stop_token = extract_first_price(chosen.get("invalidation", ""))
+    cancel_rule = build_cancel_rule(best_side, stop_token)
     targets = chosen.get("targets", chosen.get("range", []))
     entry_price_value = parse_price(trigger_token)
     stop_price_value = parse_price(stop_token)
@@ -270,6 +291,11 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "confirmation_bars": trigger["confirmation_bars"],
             "trigger_text": trigger["trigger_text"],
             "trigger_text_natural": chosen.get("condition", ""),
+            "cancel_price": cancel_rule["cancel_price"],
+            "cancel_price_text": cancel_rule["cancel_price_text"],
+            "cancel_timeframe": cancel_rule["cancel_timeframe"],
+            "cancel_type": cancel_rule["cancel_type"],
+            "cancel_text": cancel_rule["cancel_text"],
             "targets": targets,
             "take_profit": take_profit,
             "stop_price": stop_token,
@@ -307,6 +333,27 @@ def trigger_satisfied(strategy: dict, market_data: dict[str, list[dict]]) -> tup
     return False, None
 
 
+def cancel_satisfied(strategy: dict, market_data: dict[str, list[dict]]) -> tuple[bool, str | None]:
+    timeframe = strategy.get("cancel_timeframe", "1h")
+    cancel_type = strategy.get("cancel_type")
+    cancel_price = strategy.get("cancel_price")
+    created_ts = int(datetime.fromisoformat(strategy["created_at"]).timestamp())
+    candles = market_data.get(timeframe, [])
+    relevant = [candle for candle in candles if candle["open_time"] // 1000 >= created_ts]
+
+    if cancel_price is None or cancel_type not in {"close_above", "close_below"}:
+        return False, None
+
+    for candle in relevant:
+        close_price = candle["close"]
+        matched = close_price > cancel_price if cancel_type == "close_above" else close_price < cancel_price
+        if matched:
+            canceled_at = datetime.fromtimestamp(candle["close_time"] // 1000, tz=SEOUL).isoformat(timespec="seconds")
+            return True, canceled_at
+
+    return False, None
+
+
 def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: str) -> dict:
     updated = deepcopy(strategy)
     side = updated.get("side")
@@ -325,6 +372,15 @@ def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: s
 
         if not opened:
             is_triggered, opened_at = trigger_satisfied(updated, market_data)
+            is_canceled, canceled_at = cancel_satisfied(updated, market_data)
+
+            if is_canceled and canceled_at and (not opened_at or canceled_at <= opened_at):
+                updated["status"] = "canceled"
+                updated["status_label"] = "추천 취소"
+                updated["closed_at"] = canceled_at
+                updated["outcome_note"] = f"진입 전 {updated.get('cancel_text', '무효 조건')}이 충족되어 추천이 취소되었습니다."
+                return updated
+
             if is_triggered and opened_at:
                 updated["opened_at"] = opened_at
                 updated["status"] = "open"
@@ -395,6 +451,7 @@ def apply_balance_curve(history: list[dict]) -> tuple[list[dict], dict]:
     pending = sum(1 for item in chronological if item.get("status") == "pending")
     open_count = sum(1 for item in chronological if item.get("status") == "open")
     expired = sum(1 for item in chronological if item.get("status") == "expired")
+    canceled = sum(1 for item in chronological if item.get("status") == "canceled")
     win_rate = f"{(wins / len(closed) * 100):.1f}%" if closed else "0.0%"
     cumulative_pnl = balance - STARTING_BALANCE
     summary = {
@@ -408,6 +465,7 @@ def apply_balance_curve(history: list[dict]) -> tuple[list[dict], dict]:
         "pending": pending,
         "open": open_count,
         "expired": expired,
+        "canceled": canceled,
         "win_rate": win_rate,
     }
     return updated_history, summary
@@ -625,6 +683,7 @@ def main() -> None:
             "pending": 0,
             "open": 0,
             "expired": 0,
+            "canceled": 0,
             "win_rate": "0.0%",
         },
         "conclusion": base_report.get("conclusion", default_conclusion),
