@@ -79,16 +79,28 @@ h3 {
 
 .hero-heading-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
 
+.hero-title-block {
+  min-width: 0;
+}
+
 h1 {
-  font-size: clamp(1.85rem, 3vw, 2.8rem);
-  line-height: 1.02;
+  font-size: clamp(1.9rem, 3vw, 3.1rem);
+  line-height: 0.98;
   max-width: none;
+}
+
+.hero-subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.98rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .hero-badge {
@@ -105,11 +117,11 @@ h1 {
 }
 
 .hero-summary {
-  margin: 14px 0 0;
+  margin: 12px 0 0;
   max-width: 78ch;
   color: var(--muted);
-  font-size: 0.98rem;
-  line-height: 1.7;
+  font-size: 0.96rem;
+  line-height: 1.65;
 }
 
 .hero-meta {
@@ -341,6 +353,10 @@ li + li {
 
   .hero-heading-row {
     align-items: flex-start;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem;
   }
 
   .chart-container {
