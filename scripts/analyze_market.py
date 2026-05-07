@@ -115,6 +115,63 @@ def strongest_volume_node(candles: list[dict]) -> float:
     return (strongest["high"] + strongest["low"] + strongest["close"]) / 3
 
 
+def build_trendline(start: dict, end: dict, latest_time: int, line_type: str) -> dict:
+    start_time = start["open_time"] // 1000
+    end_time = end["open_time"] // 1000
+    latest = latest_time // 1000
+    time_span = max(end_time - start_time, 1)
+    start_value = start["low"] if line_type == "support" else start["high"]
+    end_value = end["low"] if line_type == "support" else end["high"]
+    slope = (end_value - start_value) / time_span
+    extended_value = end_value + slope * max(latest - end_time, 0)
+
+    return {
+        "type": line_type,
+        "slope": slope,
+        "start": {"time": start_time, "value": round(start_value, 2)},
+        "end": {"time": latest, "value": round(extended_value, 2)},
+    }
+
+
+def classify_structure(trendlines: list[dict]) -> str | None:
+    support_line = next((line for line in trendlines if line["type"] == "support"), None)
+    resistance_line = next((line for line in trendlines if line["type"] == "resistance"), None)
+    if not support_line or not resistance_line:
+        return None
+
+    support_slope = support_line["slope"]
+    resistance_slope = resistance_line["slope"]
+    slope_gap = abs(support_slope - resistance_slope)
+    baseline = max(abs(support_slope), abs(resistance_slope), 0.0001)
+
+    if support_slope > 0 and resistance_slope > 0 and slope_gap / baseline < 0.35:
+        return "상승 평행 채널 가능성"
+    if support_slope < 0 and resistance_slope < 0 and slope_gap / baseline < 0.35:
+        return "하락 평행 채널 가능성"
+    if support_slope > 0 and resistance_slope < 0:
+        return "수렴형 삼각 또는 쐐기 가능성"
+    if support_slope < 0 and resistance_slope > 0:
+        return "확산형 쐐기 또는 broadening 구조 가능성"
+    if support_slope > 0 and resistance_slope > 0:
+        return "상승 쐐기 가능성"
+    if support_slope < 0 and resistance_slope < 0:
+        return "하락 쐐기 가능성"
+    return None
+
+
+def detect_trendlines(candles: list[dict]) -> tuple[list[dict], str | None]:
+    highs, lows = identify_swing_points(candles)
+    trendlines = []
+    latest_time = candles[-1]["open_time"]
+
+    if len(lows) >= 2:
+        trendlines.append(build_trendline(lows[-2], lows[-1], latest_time, "support"))
+    if len(highs) >= 2:
+        trendlines.append(build_trendline(highs[-2], highs[-1], latest_time, "resistance"))
+
+    return trendlines, classify_structure(trendlines)
+
+
 @dataclass
 class TimeframeAnalysis:
     timeframe: str
@@ -127,6 +184,8 @@ class TimeframeAnalysis:
     volume_reference: float
     fib_levels: dict[str, float]
     volume_comment: str
+    trendlines: list[dict]
+    structure_hint: str | None
 
 
 def analyze_timeframe(candles: list[dict], timeframe: str) -> TimeframeAnalysis:
@@ -138,6 +197,7 @@ def analyze_timeframe(candles: list[dict], timeframe: str) -> TimeframeAnalysis:
         enriched.append({**candle, "rsi": rsi})
 
     highs, lows = identify_swing_points(enriched)
+    trendlines, structure_hint = detect_trendlines(enriched)
     resistance = highs[-1]["high"] if highs else max(closes[-30:])
     support = lows[-1]["low"] if lows else min(closes[-30:])
     high_price = max(candle["high"] for candle in enriched[-90:])
@@ -164,6 +224,8 @@ def analyze_timeframe(candles: list[dict], timeframe: str) -> TimeframeAnalysis:
         volume_reference=strongest_volume_node(enriched),
         fib_levels=fibonacci_levels(high_price, low_price),
         volume_comment=volume_comment,
+        trendlines=trendlines,
+        structure_hint=structure_hint,
     )
 
 
@@ -207,6 +269,7 @@ def describe_timeframe(analysis: TimeframeAnalysis) -> str:
             f"지지: {format_price(analysis.support)} / 저항: {format_price(analysis.resistance)}",
             f"거래량 중심 가격: {format_price(analysis.volume_reference)}",
             f"RSI: {rsi_comment}",
+            f"추세선 구조: {analysis.structure_hint or '뚜렷한 대각 추세선 구조는 제한적입니다'}",
             f"다이버전스: {divergence_comment}",
             f"거래량 해석: {analysis.volume_comment}",
         ]

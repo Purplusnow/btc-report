@@ -109,7 +109,29 @@ function setChartError(container, message = CHART_ERROR_TEXT) {
   container.innerHTML = `<div class="chart-empty">${message}</div>`;
 }
 
-function createChart(containerId, rsiContainerId, candles) {
+function renderTrendlines(priceChart, overlays) {
+  const trendlines = overlays?.trendlines || [];
+  const dashedStyle = window.LightweightCharts?.LineStyle?.LargeDashed ?? 2;
+
+  trendlines.forEach((trendline) => {
+    const isSupport = trendline.type === "support";
+    const series = priceChart.addLineSeries({
+      color: isSupport ? "rgba(31, 122, 90, 0.9)" : "rgba(178, 75, 63, 0.9)",
+      lineWidth: 2,
+      lineStyle: dashedStyle,
+      crosshairMarkerVisible: false,
+      lastValueVisible: false,
+      priceLineVisible: false
+    });
+
+    series.setData([
+      trendline.start,
+      trendline.end
+    ]);
+  });
+}
+
+function createChart(containerId, rsiContainerId, candles, overlays) {
   const priceContainer = document.getElementById(containerId);
   const rsiContainer = document.getElementById(rsiContainerId);
 
@@ -171,6 +193,7 @@ function createChart(containerId, rsiContainerId, candles) {
       }
     });
     volumeSeries.setData(buildVolumeSeries(candles));
+    renderTrendlines(priceChart, overlays);
     priceChart.timeScale().fitContent();
 
     const rsiChart = LightweightCharts.createChart(rsiContainer, {
@@ -276,9 +299,24 @@ async function loadPage() {
     historyList.innerHTML = `<li class="history-item">${FALLBACK_TEXT}</li>`;
   }
 
-  createChart("chart-1d-price", "chart-1d-rsi", chartData.timeframes?.["1d"] || []);
-  createChart("chart-4h-price", "chart-4h-rsi", chartData.timeframes?.["4h"] || []);
-  createChart("chart-1h-price", "chart-1h-rsi", chartData.timeframes?.["1h"] || []);
+  createChart(
+    "chart-1d-price",
+    "chart-1d-rsi",
+    chartData.timeframes?.["1d"] || [],
+    chartData.overlays?.["1d"] || {}
+  );
+  createChart(
+    "chart-4h-price",
+    "chart-4h-rsi",
+    chartData.timeframes?.["4h"] || [],
+    chartData.overlays?.["4h"] || {}
+  );
+  createChart(
+    "chart-1h-price",
+    "chart-1h-rsi",
+    chartData.timeframes?.["1h"] || [],
+    chartData.overlays?.["1h"] || {}
+  );
 }
 
 loadPage().catch((error) => {

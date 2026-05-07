@@ -47,6 +47,17 @@ def serialize_chart_data(market_data: dict[str, list[dict]]) -> dict[str, list[d
     return result
 
 
+def serialize_overlays(base_report: dict) -> dict[str, dict]:
+    overlays = {}
+    meta_timeframes = base_report.get("meta", {}).get("timeframes", {})
+    for timeframe, analysis in meta_timeframes.items():
+        overlays[timeframe] = {
+            "trendlines": analysis.trendlines,
+            "structure_hint": analysis.structure_hint,
+        }
+    return overlays
+
+
 def build_prompt(base_report: dict) -> str:
     style_guide = load_style_guide()
     return f"""
@@ -213,6 +224,7 @@ def main() -> None:
         "symbol": symbol,
         "updated_at": now,
         "timeframes": serialize_chart_data(market_data),
+        "overlays": serialize_overlays(base_report),
     }
     history = update_history(latest_report)
 
