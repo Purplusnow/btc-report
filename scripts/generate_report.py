@@ -68,6 +68,27 @@ def parse_price(value: str | None) -> float | None:
         return None
 
 
+def extract_first_price(text: str | None) -> str:
+    if not text:
+        return ""
+    for token in str(text).replace("/", " ").split():
+        if parse_price(token) is not None:
+            return token
+    return ""
+
+
+def build_strategy_review(base_report: dict) -> str:
+    daily = base_report["meta"]["timeframes"]["1d"]
+    h4 = base_report["meta"]["timeframes"]["4h"]
+    h1 = base_report["meta"]["timeframes"]["1h"]
+    h1_rsi = f"{h1.rsi:.1f}" if h1.rsi is not None else "데이터 부족"
+    return (
+        f"일봉은 {daily.trend}, 4시간봉은 {h4.wave_bias}, "
+        f"1시간봉은 {h1.trend}이며 RSI는 {h1_rsi}입니다. "
+        f"거래량 해석은 '{h1.volume_comment}'에 가깝습니다."
+    )
+
+
 def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict]:
     daily = base_report["meta"]["timeframes"]["1d"]
     h4 = base_report["meta"]["timeframes"]["4h"]
@@ -146,7 +167,12 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
         "wait": "관망 우세",
     }
 
-    trigger_token = chosen["condition"].split(" ")[0] if chosen.get("condition") else ""
+    trigger_token = extract_first_price(chosen.get("condition", ""))
+    stop_token = extract_first_price(chosen.get("invalidation", ""))
+    targets = chosen.get("targets", chosen.get("range", []))
+    take_profit_1 = targets[0] if len(targets) >= 1 else ""
+    take_profit_2 = targets[1] if len(targets) >= 2 else ""
+    review_note = build_strategy_review(base_report)
     return [
         {
             "id": str(uuid4()),
@@ -159,11 +185,14 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "entry_price": trigger_token if best_side != "wait" else "",
             "trigger_price": parse_price(trigger_token),
             "trigger_text": chosen.get("condition", ""),
-            "targets": chosen.get("targets", chosen.get("range", [])),
-            "stop_price": chosen.get("invalidation", ""),
+            "targets": targets,
+            "take_profit_1": take_profit_1,
+            "take_profit_2": take_profit_2,
+            "stop_price": stop_token,
             "rationale": chosen.get("probability_comment", ""),
             "opened_at": None,
             "closed_at": None,
+            "review_note": review_note,
             "outcome_note": "방향 확정보다는 조건 충족 여부를 추적하는 전략입니다." if best_side == "wait" else "",
         },
     ]
@@ -174,7 +203,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
     side = updated.get("side")
     trigger_price = updated.get("trigger_price")
     stop_price = parse_price(updated.get("stop_price"))
-    target_price = parse_price(updated.get("targets", [None])[0] if updated.get("targets") else None)
+    target_price = parse_price(updated.get("take_profit_1") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
     created_ts = int(datetime.fromisoformat(updated["created_at"]).timestamp())
     now_dt = datetime.fromisoformat(now)
     if side == "wait":
@@ -210,26 +239,26 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
                     updated["status"] = "lost"
                     updated["status_label"] = "손절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"{updated['stop_price']} 이탈로 손절 처리되었습니다."
+                    updated["outcome_note"] = f"보유 후 {updated['stop_price']} 이탈로 손절 처리되었습니다."
                     return updated
                 if target_price is not None and high >= target_price:
                     updated["status"] = "won"
-                    updated["status_label"] = "목표 도달"
+                    updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"첫 목표가 {updated['targets'][0]}에 도달했습니다."
+                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit_1') or updated['targets'][0]}에 도달했습니다."
                     return updated
             elif side == "short":
                 if stop_price is not None and high >= stop_price:
                     updated["status"] = "lost"
                     updated["status_label"] = "손절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"{updated['stop_price']} 회복으로 손절 처리되었습니다."
+                    updated["outcome_note"] = f"보유 후 {updated['stop_price']} 회복으로 손절 처리되었습니다."
                     return updated
                 if target_price is not None and low <= target_price:
                     updated["status"] = "won"
-                    updated["status_label"] = "목표 도달"
+                    updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"첫 목표가 {updated['targets'][0]}에 도달했습니다."
+                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit_1') or updated['targets'][0]}에 도달했습니다."
                     return updated
 
     created_dt = datetime.fromisoformat(updated["created_at"])
@@ -450,7 +479,7 @@ def main() -> None:
 
     latest_report = merge_llm_fields(latest_report, request_openai_report(latest_report))
     strategy_history, strategy_summary = update_strategy_history(base_report, latest_report, market_data)
-    latest_report["strategy_ideas"] = strategy_history[:3]
+    latest_report["strategy_ideas"] = strategy_history[:1]
     latest_report["strategy_summary"] = strategy_summary
     chart_data = {
         "symbol": symbol,
