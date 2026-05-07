@@ -89,7 +89,7 @@ def build_strategy_review(base_report: dict) -> str:
     )
 
 
-def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict]:
+def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict, str]:
     daily = base_report["meta"]["timeframes"]["1d"]
     h4 = base_report["meta"]["timeframes"]["4h"]
     h1 = base_report["meta"]["timeframes"]["1h"]
@@ -137,34 +137,34 @@ def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, d
         elif h1.trend == "downtrend":
             scores["short"] += 1
 
-    best_side = max(scores, key=scores.get)
-    if best_side != "wait":
-        competing = max(value for key, value in scores.items() if key != best_side)
-        if scores[best_side] - competing <= 1:
-            best_side = "wait"
+    actionable_scores = {"long": scores["long"], "short": scores["short"]}
+    best_side = max(actionable_scores, key=actionable_scores.get)
+    competing = min(actionable_scores.values())
+    confidence_note = "조건 충족 시 진입을 검토할 수 있는 전략입니다."
+    if actionable_scores[best_side] - competing <= 1:
+        confidence_note = "박스 또는 혼조 성격이 남아 있어 확신도는 높지 않으며, 조건 확인 이후 접근이 적절합니다."
+    elif actionable_scores[best_side] - competing >= 3:
+        confidence_note = "상대적으로 우세한 방향성이 확인되는 편이지만, 무효화 이탈 시 빠른 재평가가 필요합니다."
 
     scenarios = latest_report["scenarios"]
     scenario_map = {
         "long": scenarios["bullish"],
         "short": scenarios["bearish"],
-        "wait": scenarios["neutral"],
     }
-    return best_side, scenario_map[best_side]
+    return best_side, scenario_map[best_side], confidence_note
 
 
 def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     symbol = latest_report["symbol"]
     created_at = latest_report["updated_at"]
-    best_side, chosen = choose_best_strategy(base_report, latest_report)
+    best_side, chosen, confidence_note = choose_best_strategy(base_report, latest_report)
     label_map = {
         "long": "우세 전략 아이디어",
         "short": "우세 전략 아이디어",
-        "wait": "우세 전략 아이디어",
     }
     side_label_map = {
         "long": "상승 우세",
         "short": "하락 우세",
-        "wait": "관망 우세",
     }
 
     trigger_token = extract_first_price(chosen.get("condition", ""))
@@ -182,18 +182,18 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "side": best_side,
             "status": "pending",
             "status_label": "대기중",
-            "entry_price": trigger_token if best_side != "wait" else "",
+            "entry_price": trigger_token,
             "trigger_price": parse_price(trigger_token),
             "trigger_text": chosen.get("condition", ""),
             "targets": targets,
             "take_profit_1": take_profit_1,
             "take_profit_2": take_profit_2,
             "stop_price": stop_token,
-            "rationale": chosen.get("probability_comment", ""),
+            "rationale": f"{chosen.get('probability_comment', '')} {confidence_note}".strip(),
             "opened_at": None,
             "closed_at": None,
             "review_note": review_note,
-            "outcome_note": "방향 확정보다는 조건 충족 여부를 추적하는 전략입니다." if best_side == "wait" else "",
+            "outcome_note": "",
         },
     ]
 
