@@ -29,11 +29,19 @@ Each report should include:
 ## Heuristic inputs
 
 - Elliott-wave-style structure probabilities
+- Price action around support, resistance, and breakout / rejection zones
 - Swing high / swing low progression
 - Fibonacci retracement zones: `0.382`, `0.5`, `0.618`
 - Round-number magnets
 - RSI momentum state and divergence
 - Volume expansion, contraction, and breakout participation
+
+## Analysis writing rule
+
+- Each timeframe section should connect price structure, RSI, and volume instead of describing them in isolation.
+- Prefer compact labeled summaries such as `추세`, `파동`, `가격 구조`, `RSI`, `거래량 해석`.
+- When RSI and volume support price continuation, say so explicitly.
+- When RSI diverges or volume weakens near resistance/support, call out the risk clearly.
 
 ## Language constraints
 
@@ -44,4 +52,3 @@ Each report should include:
   - "The key at this stage is confirmation."
   - "A pullback check is more favorable than price chasing."
   - "If invalidation breaks, the alternate path becomes more relevant."
-

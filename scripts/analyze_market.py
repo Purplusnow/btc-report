@@ -179,6 +179,7 @@ class TimeframeAnalysis:
     wave_bias: str
     divergence: str | None
     rsi: float | None
+    last_close: float
     support: float
     resistance: float
     volume_reference: float
@@ -219,6 +220,7 @@ def analyze_timeframe(candles: list[dict], timeframe: str) -> TimeframeAnalysis:
         wave_bias=wave_bias(enriched),
         divergence=estimate_divergence(enriched),
         rsi=current_rsi,
+        last_close=closes[-1],
         support=support,
         resistance=resistance,
         volume_reference=strongest_volume_node(enriched),
@@ -262,13 +264,33 @@ def describe_timeframe(analysis: TimeframeAnalysis) -> str:
         "abc-or-complex": "ABC 또는 복합 조정 여부 확인이 더 중요합니다",
     }
 
+    support_gap = abs(analysis.last_close - analysis.support)
+    resistance_gap = abs(analysis.resistance - analysis.last_close)
+    if support_gap < resistance_gap * 0.8:
+        price_comment = "최근 가격이 지지 구간에 더 가까워 지지 유지 여부가 우선 확인 포인트입니다"
+    elif resistance_gap < support_gap * 0.8:
+        price_comment = "최근 가격이 저항 구간에 가까워 돌파 안착 여부가 핵심입니다"
+    else:
+        price_comment = "최근 가격은 지지와 저항 사이 중간 구간에 있어 방향 확인이 더 중요합니다"
+
+    combined_signal = "가격 구조 확인이 우선입니다"
+    if analysis.rsi is not None:
+        if analysis.trend == "uptrend" and analysis.rsi >= 55:
+            combined_signal = "가격 구조와 RSI가 함께 버티면 상승 추세 연장 가능성을 열어둘 수 있습니다"
+        elif analysis.trend == "downtrend" and analysis.rsi <= 45:
+            combined_signal = "가격 구조와 RSI가 함께 약하면 하락 추세 연장 가능성을 경계할 필요가 있습니다"
+        elif 45 <= analysis.rsi <= 55:
+            combined_signal = "RSI가 중립에 가까워 거래량과 가격 돌파 방향이 더 중요합니다"
+
     return "\n".join(
         [
             f"추세: {trend_map[analysis.trend]}",
             f"파동: {wave_map[analysis.wave_bias]}",
+            f"가격 구조: {price_comment}",
             f"지지: {format_price(analysis.support)} / 저항: {format_price(analysis.resistance)}",
             f"거래량 중심 가격: {format_price(analysis.volume_reference)}",
             f"RSI: {rsi_comment}",
+            f"가격·RSI 종합: {combined_signal}",
             f"추세선 구조: {analysis.structure_hint or '뚜렷한 대각 추세선 구조는 제한적입니다'}",
             f"다이버전스: {divergence_comment}",
             f"거래량 해석: {analysis.volume_comment}",
@@ -337,16 +359,18 @@ def analyze_market(symbol: str, market_data: dict[str, list[dict]]) -> dict:
         "triangle-or-range": "삼각수렴 또는 횡보 가능성",
         "abc-or-complex": "ABC 또는 복합 조정 가능성",
     }
+    h1_rsi_text = f"{h1.rsi:.1f}" if h1.rsi is not None else "데이터 부족"
 
     summary = (
         f"{symbol}는 현재 일봉에서 {trend_kor[daily.trend]}, 4시간봉에서 {wave_kor[h4.wave_bias]}, "
         f"1시간봉에서는 {trend_kor[h1.trend]} 성격이 겹치는 구간입니다. "
-        "따라서 단일 방향 단정은 피하고 상위 구조 확인 뒤 대응하는 접근이 유리합니다."
+        f"또한 1시간봉 RSI는 {h1_rsi_text} 수준이며 거래량 해석은 '{h1.volume_comment}'에 가깝습니다. "
+        "따라서 단일 방향 단정은 피하고 가격 구조와 거래량 확인 뒤 대응하는 접근이 유리합니다."
     )
 
     conclusion = (
         f"현재는 {bullish_trigger} 돌파 확인과 {bearish_trigger} 지지 여부가 핵심 분기점입니다. "
-        "추격 대응보다는 지지 확인 또는 돌파 안착 이후의 후속 반응을 확인하는 편이 더 안정적입니다."
+        "추격 대응보다는 지지 확인 또는 돌파 안착 이후의 후속 반응, 그리고 그 과정에서 RSI와 거래량이 동반되는지 확인하는 편이 더 안정적입니다."
     )
 
     return {
