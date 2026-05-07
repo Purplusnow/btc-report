@@ -37,7 +37,7 @@ function formatSeoulTime(isoString) {
     return isoString;
   }
 
-  const seoul = new Intl.DateTimeFormat("ko-KR", {
+  const parts = new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -46,9 +46,10 @@ function formatSeoulTime(isoString) {
     second: "2-digit",
     hour12: false,
     timeZone: "Asia/Seoul"
-  }).format(parsed).replace(",", "");
+  }).formatToParts(parsed);
 
-  return `서울 ${seoul}`;
+  const map = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `서울 ${map.year}.${map.month}.${map.day} ${map.hour}:${map.minute}:${map.second}`;
 }
 
 function formatVersion(isoString) {
