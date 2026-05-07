@@ -172,14 +172,14 @@ def format_price(value: float) -> str:
 
 
 def describe_timeframe(analysis: TimeframeAnalysis) -> str:
-    rsi_comment = "RSI 데이터가 부족합니다."
+    rsi_comment = "데이터 부족"
     if analysis.rsi is not None:
         if analysis.rsi >= 70:
-            rsi_comment = f"RSI는 {analysis.rsi:.1f}로 단기 과열 구간에 가깝습니다."
+            rsi_comment = f"{analysis.rsi:.1f}로 단기 과열 구간에 가깝습니다"
         elif analysis.rsi <= 30:
-            rsi_comment = f"RSI는 {analysis.rsi:.1f}로 단기 과매도 구간에 근접합니다."
+            rsi_comment = f"{analysis.rsi:.1f}로 단기 과매도 구간에 근접합니다"
         else:
-            rsi_comment = f"RSI는 {analysis.rsi:.1f}로 중립과 추세 구간의 중간에 위치합니다."
+            rsi_comment = f"{analysis.rsi:.1f}로 중립과 추세 구간의 중간에 위치합니다"
 
     divergence_comment = "뚜렷한 다이버전스 신호는 제한적입니다."
     if analysis.divergence == "bearish":
@@ -194,21 +194,21 @@ def describe_timeframe(analysis: TimeframeAnalysis) -> str:
     }
 
     wave_map = {
-        "impulse-up": "파동 구조는 상승 임펄스 진행 가능성을 높입니다.",
-        "impulse-down": "파동 구조는 하락 임펄스 또는 하락 연장 해석에 무게가 실립니다.",
-        "triangle-or-range": "삼각수렴 또는 복합 조정 구간으로 이어질 가능성을 열어둘 수 있습니다.",
-        "abc-or-complex": "단순 추세 추격보다는 ABC 또는 복합 조정 여부 확인이 더 중요합니다.",
+        "impulse-up": "상승 임펄스 진행 가능성이 높습니다",
+        "impulse-down": "하락 임펄스 또는 하락 연장 해석에 무게가 실립니다",
+        "triangle-or-range": "삼각수렴 또는 복합 조정 가능성을 열어둘 수 있습니다",
+        "abc-or-complex": "ABC 또는 복합 조정 여부 확인이 더 중요합니다",
     }
 
-    return " ".join(
+    return "\n".join(
         [
-            trend_map[analysis.trend],
-            wave_map[analysis.wave_bias],
-            f"주요 지지 후보는 {format_price(analysis.support)}, 저항 후보는 {format_price(analysis.resistance)}입니다.",
-            f"거래량 중심 가격은 {format_price(analysis.volume_reference)} 부근입니다.",
-            rsi_comment,
-            divergence_comment,
-            analysis.volume_comment,
+            f"추세: {trend_map[analysis.trend]}",
+            f"파동: {wave_map[analysis.wave_bias]}",
+            f"지지: {format_price(analysis.support)} / 저항: {format_price(analysis.resistance)}",
+            f"거래량 중심 가격: {format_price(analysis.volume_reference)}",
+            f"RSI: {rsi_comment}",
+            f"다이버전스: {divergence_comment}",
+            f"거래량 해석: {analysis.volume_comment}",
         ]
     )
 
