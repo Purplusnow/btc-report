@@ -194,11 +194,27 @@ h1 {
   font-size: 0.92rem;
 }
 
+.adsbygoogle {
+  display: block;
+  min-height: 110px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
 .ad-slot-mid .ad-placeholder {
   min-height: 140px;
 }
 
 .ad-slot-footer .ad-placeholder {
+  min-height: 120px;
+}
+
+.ad-slot-mid .adsbygoogle {
+  min-height: 140px;
+}
+
+.ad-slot-footer .adsbygoogle {
   min-height: 120px;
 }
 
@@ -478,6 +494,10 @@ li + li {
   .ad-placeholder {
     min-height: 90px;
     font-size: 0.86rem;
+  }
+
+  .adsbygoogle {
+    min-height: 90px;
   }
 
   .chart-container {
