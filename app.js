@@ -16,6 +16,41 @@ function setText(id, value) {
   }
 }
 
+function formatDualTimezone(isoString) {
+  if (!isoString) {
+    return "-";
+  }
+
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) {
+    return isoString;
+  }
+
+  const utc = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "UTC"
+  }).format(parsed).replace(",", "");
+
+  const seoul = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul"
+  }).format(parsed).replace(",", "");
+
+  return `UTC ${utc} | 서울 ${seoul}`;
+}
+
 function setList(id, items, emptyText) {
   const element = document.getElementById(id);
   if (element) {
@@ -189,7 +224,7 @@ async function loadPage() {
   const symbol = latest.symbol || "BTCUSDT";
   document.getElementById("page-title").textContent = `${symbol} Multi-Timeframe Report`;
   setText("summary", latest.summary);
-  setText("updated-at", latest.updated_at || "-");
+  setText("updated-at", formatDualTimezone(latest.updated_at));
   setText("daily-view", latest.daily_view);
   setText("h4-view", latest.h4_view);
   setText("h1-view", latest.h1_view);
@@ -222,7 +257,7 @@ async function loadPage() {
     const li = document.createElement("li");
     li.className = "history-item";
     li.innerHTML = `
-      <span class="history-meta">${item.updated_at || "-"}</span>
+      <span class="history-meta">${formatDualTimezone(item.updated_at)}</span>
       <strong>${item.symbol || symbol}</strong>
       <p>${item.summary || FALLBACK_TEXT}</p>
     `;
