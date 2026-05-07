@@ -19,6 +19,10 @@ jobs:
   build-report:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: gpt-5-mini
+      SYMBOL: BTCUSDT
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -36,10 +40,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Generate report
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-5-mini
-          SYMBOL: BTCUSDT
         shell: bash
         run: |
           for attempt in 1 2 3; do
@@ -59,21 +59,34 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/latest.json data/history.json data/chart_data.json
-          if git diff --cached --quiet; then
-            echo "No report data changes to commit."
+          
+          commit_report_update() {
+            git add data/latest.json data/history.json data/chart_data.json
+            if git diff --cached --quiet; then
+              echo "No report data changes to commit."
+              return 0
+            fi
+            git commit -m "Update hourly market report"
+            return 1
+          }
+
+          if commit_report_update; then
             exit 0
           fi
-          git commit -m "Update hourly market report"
+
           for attempt in 1 2 3; do
-            git pull --rebase origin "${GITHUB_REF_NAME}"
             if git push origin "HEAD:${GITHUB_REF_NAME}"; then
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then
-              echo "Push rejected on attempt $attempt. Retrying after refreshing from origin..."
-              sleep 5
+              echo "Push rejected on attempt $attempt. Refreshing branch and regenerating report..."
+              git fetch origin "${GITHUB_REF_NAME}"
+              git reset --hard "origin/${GITHUB_REF_NAME}"
+              python scripts/generate_report.py
+              commit_report_update && exit 0
+              continue
             fi
           done
+
           echo "Failed to push report update after 3 attempts."
           exit 1
