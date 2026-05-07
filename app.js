@@ -174,12 +174,31 @@ function renderStrategyHistory(items, targetId = "strategy-history-list", limit 
   }
 
   const history = Array.isArray(items) ? items : [];
-  if (!history.length) {
+  const deduped = [];
+  const seen = new Set();
+
+  history.forEach((item) => {
+    const key = [
+      item.symbol || "",
+      item.direction_label || "",
+      item.entry_price || "",
+      item.stop_price || "",
+      item.take_profit || "",
+      item.status || ""
+    ].join("|");
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(item);
+    }
+  });
+
+  if (!deduped.length) {
     element.innerHTML = `<li class="history-item">${FALLBACK_TEXT}</li>`;
     return;
   }
 
-  element.innerHTML = history.slice(0, limit).map((item) => `
+  element.innerHTML = deduped.slice(0, limit).map((item) => `
     <li class="history-item">
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
