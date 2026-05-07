@@ -74,6 +74,25 @@ function scenarioTargets(label, values) {
   return `${label}: ${values.join(" / ")}`;
 }
 
+function buildRuleText(idea) {
+  const price = idea.trigger_price ?? idea.entry_price ?? "-";
+  const timeframeMap = {
+    "1h": "1시간봉",
+    "4h": "4시간봉",
+    "1d": "일봉"
+  };
+  const typeMap = {
+    close_above: "종가가 위에서 마감",
+    close_below: "종가가 아래에서 마감"
+  };
+
+  const timeframe = timeframeMap[idea.trigger_timeframe] || idea.trigger_timeframe || "기준 봉";
+  const triggerType = typeMap[idea.trigger_type] || "조건 충족";
+  const bars = idea.confirmation_bars || 1;
+
+  return `${timeframe} ${bars}개가 ${price} 기준으로 ${triggerType}하면 진입`;
+}
+
 function renderStrategyIdeas(items) {
   const element = document.getElementById("strategy-ideas");
   if (!element) {
@@ -86,19 +105,23 @@ function renderStrategyIdeas(items) {
     return;
   }
 
-  element.innerHTML = ideas.map((idea) => `
+  element.innerHTML = ideas.map((idea) => {
+    const naturalText = idea.trigger_text_natural || idea.trigger_text || FALLBACK_TEXT;
+    const ruleText = buildRuleText(idea);
+    return `
     <div class="strategy-item ${idea.side || "wait"}">
       <h3>${idea.label || "전략 아이디어"}</h3>
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
-      <p>${formatReadableParagraphs(`조건 요약: ${idea.trigger_text_natural || idea.trigger_text || FALLBACK_TEXT}`)}</p>
-      <p>${formatReadableParagraphs(`추적 규칙: ${idea.trigger_text || FALLBACK_TEXT}`)}</p>
+      <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
+      <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}`)}</p>
       <p>${formatReadableParagraphs(`메모: ${idea.rationale || FALLBACK_TEXT}`)}</p>
       <p>${formatReadableParagraphs(`평가 기준: ${idea.review_note || FALLBACK_TEXT}`)}</p>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderStrategyMetrics(summary) {
