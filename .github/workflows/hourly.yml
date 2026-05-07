@@ -63,4 +63,5 @@ jobs:
             exit 0
           fi
           git commit -m "Update hourly market report"
-          git push
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
