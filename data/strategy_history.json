@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "91718724-715e-4d0c-a1bf-48c70f1579a7",
+    "created_at": "2026-05-07T15:59:44+09:00",
+    "symbol": "BTCUSDT",
+    "label": "우세 전략 아이디어 · 관망 우세",
+    "side": "wait",
+    "status": "pending",
+    "status_label": "대기중",
+    "entry_price": "",
+    "trigger_price": 81200.0,
+    "trigger_text": "81,200.00 ~ 82,850.00 사이에서 거래량 감소와 함께 박스 흐름이 이어질 때",
+    "targets": [
+      "81,200.00",
+      "82,850.00"
+    ],
+    "take_profit_1": "81,200.00",
+    "take_profit_2": "82,850.00",
+    "stop_price": "82,850.00",
+    "rationale": "방향성 확정보다는 수렴 해석이 우세한 구간이며, 박스 상하단 반응 확인이 중요합니다.",
+    "opened_at": null,
+    "closed_at": null,
+    "review_note": "일봉은 uptrend, 4시간봉은 impulse-up, 1시간봉은 range이며 RSI는 52.4입니다. 거래량 해석은 '거래량이 줄어들고 있어 추세보다는 수렴 또는 숨 고르기 가능성을 열어둘 필요가 있습니다.'에 가깝습니다.",
+    "outcome_note": "방향 확정보다는 조건 충족 여부를 추적하는 전략입니다."
+  }
+]
