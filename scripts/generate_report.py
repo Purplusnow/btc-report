@@ -89,6 +89,34 @@ def build_strategy_review(base_report: dict) -> str:
     )
 
 
+def pick_take_profit(side: str, entry_price: float | None, stop_price: float | None, targets: list[str]) -> str:
+    parsed_targets = []
+    for target in targets:
+        value = parse_price(target)
+        if value is not None:
+            parsed_targets.append((target, value))
+
+    if entry_price is not None:
+        if side == "long":
+            for raw, value in parsed_targets:
+                if value > entry_price:
+                    return raw
+        elif side == "short":
+            for raw, value in parsed_targets:
+                if value < entry_price:
+                    return raw
+
+    if entry_price is not None and stop_price is not None:
+        risk = abs(entry_price - stop_price)
+        if risk > 0:
+            if side == "long":
+                return f"{entry_price + risk * 1.5:,.2f}"
+            if side == "short":
+                return f"{entry_price - risk * 1.5:,.2f}"
+
+    return targets[0] if targets else ""
+
+
 def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict, str]:
     daily = base_report["meta"]["timeframes"]["1d"]
     h4 = base_report["meta"]["timeframes"]["4h"]
@@ -170,7 +198,9 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     trigger_token = extract_first_price(chosen.get("condition", ""))
     stop_token = extract_first_price(chosen.get("invalidation", ""))
     targets = chosen.get("targets", chosen.get("range", []))
-    take_profit = targets[0] if len(targets) >= 1 else ""
+    entry_price_value = parse_price(trigger_token)
+    stop_price_value = parse_price(stop_token)
+    take_profit = pick_take_profit(best_side, entry_price_value, stop_price_value, targets)
     review_note = build_strategy_review(base_report)
     return [
         {
@@ -179,6 +209,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "symbol": symbol,
             "label": f"{label_map[best_side]} · {side_label_map[best_side]}",
             "side": best_side,
+            "direction_label": "롱" if best_side == "long" else "숏",
             "status": "pending",
             "status_label": "대기중",
             "entry_price": trigger_token,

@@ -89,6 +89,7 @@ function renderStrategyIdeas(items) {
   element.innerHTML = ideas.map((idea) => `
     <div class="strategy-item ${idea.side || "wait"}">
       <h3>${idea.label || "전략 아이디어"}</h3>
+      <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
       <p>${formatReadableParagraphs(`조건: ${idea.trigger_text || FALLBACK_TEXT}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}`)}</p>
@@ -136,7 +137,7 @@ function renderStrategyHistory(items) {
     <li class="history-item">
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
-      <p>진입 ${item.entry_price || "-"} / 손절 ${item.stop_price || "-"} / 익절 ${item.take_profit || "-"}</p>
+      <p>${item.direction_label || "-"} · 진입 ${item.entry_price || "-"} / 손절 ${item.stop_price || "-"} / 익절 ${item.take_profit || "-"}</p>
       <p>${item.outcome_note || item.trigger_text || FALLBACK_TEXT}</p>
     </li>
   `).join("");
