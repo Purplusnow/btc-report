@@ -28,6 +28,7 @@
     "outcome_note": "",
     "balance_before": 1000.0,
     "pnl_amount": 0.0,
-    "balance_after": 1000.0
+    "balance_after": 1000.0,
+    "signature": "BTCUSDT|long|82,850.00|80,725.09|85,335.50|4h|close_above|82850.0|1"
   }
 ]
