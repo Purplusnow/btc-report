@@ -108,6 +108,29 @@ function buildRuleText(idea) {
   return `${timeframe} ${bars}개가 ${price} 기준으로 ${triggerType}하면 진입`;
 }
 
+function buildCancelDisplayText(idea) {
+  const expiryHours = idea.expiry_hours || 48;
+  let cancelText = idea.cancel_text;
+
+  if (!cancelText) {
+    const timeframeMap = {
+      "1h": "1시간봉",
+      "4h": "4시간봉",
+      "1d": "일봉"
+    };
+    const typeMap = {
+      close_above: "위에서 마감하면 추천 취소",
+      close_below: "아래에서 마감하면 추천 취소"
+    };
+    const timeframe = timeframeMap[idea.cancel_timeframe] || idea.cancel_timeframe || "기준 봉";
+    const cancelType = typeMap[idea.cancel_type] || "조건 충족 시 추천 취소";
+    const price = idea.cancel_price_text || idea.stop_price || "-";
+    cancelText = `${timeframe} 종가가 ${price} 기준으로 ${cancelType}`;
+  }
+
+  return `${cancelText} 또는 ${expiryHours}시간 내 미체결 시 만료`;
+}
+
 function renderStrategyIdeas(items) {
   const element = document.getElementById("strategy-ideas");
   if (!element) {
@@ -123,6 +146,7 @@ function renderStrategyIdeas(items) {
   element.innerHTML = ideas.map((idea) => {
     const naturalText = idea.trigger_text_natural || idea.trigger_text || FALLBACK_TEXT;
     const ruleText = buildRuleText(idea);
+    const cancelDisplayText = buildCancelDisplayText(idea);
     const stopPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.stop_price);
     const takeProfitPercent = formatPercentFromLevels(idea.side, idea.entry_price, idea.take_profit);
     return `
@@ -131,7 +155,7 @@ function renderStrategyIdeas(items) {
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
       <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
       <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
-      <p>${formatReadableParagraphs(`추천 취소 조건: ${idea.cancel_text || "-"}`)}</p>
+      <p>${formatReadableParagraphs(`추천 취소 조건: ${cancelDisplayText}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}${stopPercent}`)}</p>
       <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}${takeProfitPercent}`)}</p>

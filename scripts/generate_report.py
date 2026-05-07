@@ -22,6 +22,7 @@ from fetch_market import fetch_market_data
 DATA_DIR = ROOT_DIR / "data"
 SEOUL = ZoneInfo("Asia/Seoul")
 STARTING_BALANCE = 1000.0
+STRATEGY_EXPIRY_HOURS = 48
 
 
 def load_style_guide() -> str:
@@ -296,6 +297,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "cancel_timeframe": cancel_rule["cancel_timeframe"],
             "cancel_type": cancel_rule["cancel_type"],
             "cancel_text": cancel_rule["cancel_text"],
+            "expiry_hours": STRATEGY_EXPIRY_HOURS,
             "targets": targets,
             "take_profit": take_profit,
             "stop_price": stop_token,
@@ -420,11 +422,12 @@ def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: s
                     return updated
 
     created_dt = datetime.fromisoformat(updated["created_at"])
-    if updated["status"] == "pending" and (now_dt - created_dt).total_seconds() >= 48 * 3600:
+    expiry_hours = int(updated.get("expiry_hours", STRATEGY_EXPIRY_HOURS) or STRATEGY_EXPIRY_HOURS)
+    if updated["status"] == "pending" and (now_dt - created_dt).total_seconds() >= expiry_hours * 3600:
         updated["status"] = "expired"
         updated["status_label"] = "만료"
-        updated["outcome_note"] = "48시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
-    return updated
+        updated["outcome_note"] = f"{expiry_hours}시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
+        return updated
 
 
 def apply_balance_curve(history: list[dict]) -> tuple[list[dict], dict]:
