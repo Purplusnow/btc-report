@@ -150,8 +150,8 @@ function renderStrategyMetrics(summary) {
   `;
 }
 
-function renderStrategyHistory(items) {
-  const element = document.getElementById("strategy-history-list");
+function renderStrategyHistory(items, targetId = "strategy-history-list", limit = 8) {
+  const element = document.getElementById(targetId);
   if (!element) {
     return;
   }
@@ -162,7 +162,7 @@ function renderStrategyHistory(items) {
     return;
   }
 
-  element.innerHTML = history.slice(0, 8).map((item) => `
+  element.innerHTML = history.slice(0, limit).map((item) => `
     <li class="history-item">
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
@@ -352,15 +352,13 @@ function createChart(containerId, volumeContainerId, rsiContainerId, candles, ov
 }
 
 async function loadPage() {
-  const [latestResponse, historyResponse, chartResponse, strategyResponse] = await Promise.all([
+  const [latestResponse, chartResponse, strategyResponse] = await Promise.all([
     fetch("data/latest.json"),
-    fetch("data/history.json"),
     fetch("data/chart_data.json"),
     fetch("data/strategy_history.json")
   ]);
 
   const latest = await latestResponse.json();
-  const history = await historyResponse.json();
   const chartData = await chartResponse.json();
   const strategyHistory = await strategyResponse.json();
 
@@ -375,7 +373,8 @@ async function loadPage() {
   setText("disclaimer", latest.disclaimer);
   renderStrategyIdeas(latest.strategy_ideas || []);
   renderStrategyMetrics(latest.strategy_summary || {});
-  renderStrategyHistory(strategyHistory || []);
+  renderStrategyHistory(strategyHistory || [], "strategy-history-list", 8);
+  renderStrategyHistory(strategyHistory || [], "recent-strategy-list", 6);
 
   setList("support-levels", latest.key_levels?.support, "분석 대기 중");
   setList("resistance-levels", latest.key_levels?.resistance, "분석 대기 중");
@@ -395,24 +394,6 @@ async function loadPage() {
   setText("neutral-range", scenarioTargets("범위", latest.scenarios?.neutral?.range));
   setText("neutral-invalidation", formatReadableParagraphs(`무효화: ${latest.scenarios?.neutral?.invalidation || FALLBACK_TEXT}`));
   setText("neutral-probability", formatReadableParagraphs(`평가: ${latest.scenarios?.neutral?.probability_comment || FALLBACK_TEXT}`));
-
-  const historyList = document.getElementById("history-list");
-  historyList.innerHTML = "";
-
-  (history || []).slice(0, 8).forEach((item) => {
-    const li = document.createElement("li");
-    li.className = "history-item";
-    li.innerHTML = `
-      <span class="history-meta">${formatSeoulTime(item.updated_at)}</span>
-      <strong>${item.symbol || symbol}</strong>
-      <p>${formatReadableParagraphs(item.summary || FALLBACK_TEXT)}</p>
-    `;
-    historyList.appendChild(li);
-  });
-
-  if (!historyList.children.length) {
-    historyList.innerHTML = `<li class="history-item">${FALLBACK_TEXT}</li>`;
-  }
 
   createChart(
     "chart-1d-price",
