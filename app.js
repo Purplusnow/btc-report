@@ -90,7 +90,8 @@ function renderStrategyIdeas(items) {
     <div class="strategy-item ${idea.side || "wait"}">
       <h3>${idea.label || "전략 아이디어"}</h3>
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
-      <p>${formatReadableParagraphs(`조건: ${idea.trigger_text || FALLBACK_TEXT}`)}</p>
+      <p>${formatReadableParagraphs(`조건 요약: ${idea.trigger_text_natural || idea.trigger_text || FALLBACK_TEXT}`)}</p>
+      <p>${formatReadableParagraphs(`추적 규칙: ${idea.trigger_text || FALLBACK_TEXT}`)}</p>
       <p>${formatReadableParagraphs(`진입가: ${idea.entry_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`손절가: ${idea.stop_price || "-"}`)}</p>
       <p>${formatReadableParagraphs(`익절가: ${idea.take_profit || "-"}`)}</p>

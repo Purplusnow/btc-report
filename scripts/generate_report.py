@@ -253,6 +253,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "trigger_type": trigger["trigger_type"],
             "confirmation_bars": trigger["confirmation_bars"],
             "trigger_text": trigger["trigger_text"],
+            "trigger_text_natural": chosen.get("condition", ""),
             "targets": targets,
             "take_profit": take_profit,
             "stop_price": stop_token,
