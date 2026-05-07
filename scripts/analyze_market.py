@@ -273,14 +273,36 @@ def describe_timeframe(analysis: TimeframeAnalysis) -> str:
     else:
         price_comment = "최근 가격은 지지와 저항 사이 중간 구간에 있어 방향 확인이 더 중요합니다"
 
-    combined_signal = "가격 구조 확인이 우선입니다"
+    combined_signal = "가격이 핵심 레벨 어느 쪽으로 반응하는지 먼저 확인할 필요가 있습니다"
     if analysis.rsi is not None:
+        near_support = support_gap < resistance_gap * 0.8
+        near_resistance = resistance_gap < support_gap * 0.8
+
         if analysis.trend == "uptrend" and analysis.rsi >= 55:
-            combined_signal = "가격 구조와 RSI가 함께 버티면 상승 추세 연장 가능성을 열어둘 수 있습니다"
+            if near_resistance:
+                combined_signal = "상승 추세 속 RSI도 비교적 견조하지만, 저항 인근이라 돌파 실패 시 단기 조정 가능성도 함께 열어둬야 합니다"
+            elif near_support:
+                combined_signal = "상승 추세와 RSI 흐름이 유지되고 있어 지지 반등이 확인되면 추세 재개 가능성을 열어둘 수 있습니다"
+            else:
+                combined_signal = "상승 추세와 RSI가 비교적 안정적이라 상단 테스트 가능성은 열려 있지만, 돌파 확인 전까지는 추격보다 확인 대응이 유리합니다"
         elif analysis.trend == "downtrend" and analysis.rsi <= 45:
-            combined_signal = "가격 구조와 RSI가 함께 약하면 하락 추세 연장 가능성을 경계할 필요가 있습니다"
+            if near_support:
+                combined_signal = "하락 추세 속 지지 구간 접근이라 기술적 반등 가능성은 있으나, RSI가 약해 지지 이탈 시 하락 연장 쪽에 더 주의가 필요합니다"
+            elif near_resistance:
+                combined_signal = "하락 추세에서 저항 반등이 제한되고 RSI도 약해 재차 눌릴 가능성을 경계할 필요가 있습니다"
+            else:
+                combined_signal = "하락 추세와 RSI 약세가 이어지고 있어 반등이 나와도 저항 전환 여부를 먼저 확인하는 편이 좋습니다"
         elif 45 <= analysis.rsi <= 55:
-            combined_signal = "RSI가 중립에 가까워 거래량과 가격 돌파 방향이 더 중요합니다"
+            if near_support:
+                combined_signal = "가격은 지지에 가깝지만 RSI가 중립이라 반등 신호가 확인되기 전까지는 박스 대응 관점이 더 적절합니다"
+            elif near_resistance:
+                combined_signal = "가격은 저항에 가깝고 RSI도 중립이라 즉시 돌파보다는 한 차례 눌림이나 거래량 확인이 더 중요합니다"
+            else:
+                combined_signal = "가격이 중간 구간에 있고 RSI도 중립이라 방향 자체보다 상하단 이탈 여부가 더 중요한 국면입니다"
+        elif analysis.rsi > 65 and near_resistance:
+            combined_signal = "RSI가 높은 편에서 저항을 시험 중이라 돌파가 나오면 탄력이 붙을 수 있지만, 실패 시 되돌림 폭도 커질 수 있습니다"
+        elif analysis.rsi < 35 and near_support:
+            combined_signal = "RSI가 낮은 편에서 지지를 시험하고 있어 반등 시도가 나올 수 있지만, 지지 이탈 시 하락 가속 가능성도 함께 봐야 합니다"
 
     return "\n".join(
         [
