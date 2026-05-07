@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="background-grid" aria-hidden="true"></div>
+  <main class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">WaveK Crypto Research</p>
+        <h1 id="page-title">BTCUSDT Multi-Timeframe Report</h1>
+        <p class="hero-summary" id="summary">
+          최신 분석이 준비되면 이곳에 시장 요약이 표시됩니다.
+        </p>
+      </div>
+      <aside class="hero-meta">
+        <div class="meta-card">
+          <span class="meta-label">Updated</span>
+          <strong id="updated-at">-</strong>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">Analyst Style</span>
+          <strong>Conditional, multi-timeframe, risk-aware</strong>
+        </div>
+      </aside>
+    </header>
+
+    <section class="section-heading">
+      <p>차트와 분석은 일봉에서 1시간봉으로 내려오며 구성됩니다.</p>
+    </section>
+
+    <section class="timeframe-section" data-timeframe="1d">
+      <div class="section-title-row">
+        <h2>일봉 관점</h2>
+        <span class="timeframe-chip">1D</span>
+      </div>
+      <div class="chart-stack">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>가격과 거래량</h3>
+          </div>
+          <div class="chart-container" id="chart-1d-price"></div>
+          <div class="chart-container chart-rsi" id="chart-1d-rsi"></div>
+        </div>
+        <article class="analysis-card">
+          <p id="daily-view"></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="timeframe-section" data-timeframe="4h">
+      <div class="section-title-row">
+        <h2>4시간봉 관점</h2>
+        <span class="timeframe-chip">4H</span>
+      </div>
+      <div class="chart-stack">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>가격과 거래량</h3>
+          </div>
+          <div class="chart-container" id="chart-4h-price"></div>
+          <div class="chart-container chart-rsi" id="chart-4h-rsi"></div>
+        </div>
+        <article class="analysis-card">
+          <p id="h4-view"></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="timeframe-section" data-timeframe="1h">
+      <div class="section-title-row">
+        <h2>1시간봉 관점</h2>
+        <span class="timeframe-chip">1H</span>
+      </div>
+      <div class="chart-stack">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>가격과 거래량</h3>
+          </div>
+          <div class="chart-container" id="chart-1h-price"></div>
+          <div class="chart-container chart-rsi" id="chart-1h-rsi"></div>
+        </div>
+        <article class="analysis-card">
+          <p id="h1-view"></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="insight-grid">
+      <article class="panel">
+        <h2>핵심 가격대</h2>
+        <div class="levels">
+          <div>
+            <h3>지지</h3>
+            <ul id="support-levels"></ul>
+          </div>
+          <div>
+            <h3>저항</h3>
+            <ul id="resistance-levels"></ul>
+          </div>
+          <div>
+            <h3>무효화</h3>
+            <ul id="invalidation-levels"></ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel scenario-panel">
+        <h2>시나리오</h2>
+        <div class="scenario-card bullish">
+          <h3>상승</h3>
+          <p id="bullish-condition"></p>
+          <p id="bullish-targets"></p>
+          <p id="bullish-invalidation"></p>
+          <p id="bullish-probability"></p>
+        </div>
+        <div class="scenario-card bearish">
+          <h3>하락</h3>
+          <p id="bearish-condition"></p>
+          <p id="bearish-targets"></p>
+          <p id="bearish-invalidation"></p>
+          <p id="bearish-probability"></p>
+        </div>
+        <div class="scenario-card neutral">
+          <h3>중립</h3>
+          <p id="neutral-condition"></p>
+          <p id="neutral-range"></p>
+          <p id="neutral-invalidation"></p>
+          <p id="neutral-probability"></p>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel conclusion-panel">
+      <h2>최종 결론</h2>
+      <p id="conclusion"></p>
+      <p class="disclaimer" id="disclaimer"></p>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="section-title-row">
+        <h2>최근 분석 히스토리</h2>
+      </div>
+      <ul id="history-list" class="history-list"></ul>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
