@@ -68,67 +68,103 @@ def parse_price(value: str | None) -> float | None:
         return None
 
 
-def build_strategy_ideas(latest_report: dict) -> list[dict]:
+def choose_best_strategy(base_report: dict, latest_report: dict) -> tuple[str, dict]:
+    daily = base_report["meta"]["timeframes"]["1d"]
+    h4 = base_report["meta"]["timeframes"]["4h"]
+    h1 = base_report["meta"]["timeframes"]["1h"]
+    scores = {"long": 0, "short": 0, "wait": 0}
+
+    if daily.trend == "uptrend":
+        scores["long"] += 2
+    elif daily.trend == "downtrend":
+        scores["short"] += 2
+    else:
+        scores["wait"] += 1
+
+    if h4.wave_bias == "impulse-up":
+        scores["long"] += 2
+    elif h4.wave_bias == "impulse-down":
+        scores["short"] += 2
+    else:
+        scores["wait"] += 1
+
+    if h1.trend == "uptrend":
+        scores["long"] += 1
+    elif h1.trend == "downtrend":
+        scores["short"] += 1
+    else:
+        scores["wait"] += 1
+
+    if h1.rsi is not None:
+        if h1.rsi >= 55:
+            scores["long"] += 1
+        elif h1.rsi <= 45:
+            scores["short"] += 1
+        else:
+            scores["wait"] += 1
+
+    if h1.divergence == "bullish":
+        scores["long"] += 1
+    elif h1.divergence == "bearish":
+        scores["short"] += 1
+
+    if "줄어들고 있어" in h1.volume_comment:
+        scores["wait"] += 1
+    elif "확장되며" in h1.volume_comment:
+        if h1.trend == "uptrend":
+            scores["long"] += 1
+        elif h1.trend == "downtrend":
+            scores["short"] += 1
+
+    best_side = max(scores, key=scores.get)
+    if best_side != "wait":
+        competing = max(value for key, value in scores.items() if key != best_side)
+        if scores[best_side] - competing <= 1:
+            best_side = "wait"
+
+    scenarios = latest_report["scenarios"]
+    scenario_map = {
+        "long": scenarios["bullish"],
+        "short": scenarios["bearish"],
+        "wait": scenarios["neutral"],
+    }
+    return best_side, scenario_map[best_side]
+
+
+def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     symbol = latest_report["symbol"]
     created_at = latest_report["updated_at"]
-    bullish = latest_report["scenarios"]["bullish"]
-    bearish = latest_report["scenarios"]["bearish"]
-    neutral = latest_report["scenarios"]["neutral"]
+    best_side, chosen = choose_best_strategy(base_report, latest_report)
+    label_map = {
+        "long": "우세 전략 아이디어",
+        "short": "우세 전략 아이디어",
+        "wait": "우세 전략 아이디어",
+    }
+    side_label_map = {
+        "long": "상승 우세",
+        "short": "하락 우세",
+        "wait": "관망 우세",
+    }
 
+    trigger_token = chosen["condition"].split(" ")[0] if chosen.get("condition") else ""
     return [
         {
             "id": str(uuid4()),
             "created_at": created_at,
             "symbol": symbol,
-            "label": "상승 전략 아이디어",
-            "side": "long",
+            "label": f"{label_map[best_side]} · {side_label_map[best_side]}",
+            "side": best_side,
             "status": "pending",
             "status_label": "대기중",
-            "entry_price": bullish["condition"].split(" ")[0],
-            "trigger_price": parse_price(bullish["condition"].split(" ")[0]),
-            "trigger_text": bullish["condition"],
-            "targets": bullish.get("targets", []),
-            "stop_price": bullish.get("invalidation", ""),
-            "rationale": bullish.get("probability_comment", ""),
+            "entry_price": trigger_token if best_side != "wait" else "",
+            "trigger_price": parse_price(trigger_token),
+            "trigger_text": chosen.get("condition", ""),
+            "targets": chosen.get("targets", chosen.get("range", [])),
+            "stop_price": chosen.get("invalidation", ""),
+            "rationale": chosen.get("probability_comment", ""),
             "opened_at": None,
             "closed_at": None,
-            "outcome_note": "",
-        },
-        {
-            "id": str(uuid4()),
-            "created_at": created_at,
-            "symbol": symbol,
-            "label": "하락 전략 아이디어",
-            "side": "short",
-            "status": "pending",
-            "status_label": "대기중",
-            "entry_price": bearish["condition"].split(" ")[0],
-            "trigger_price": parse_price(bearish["condition"].split(" ")[0]),
-            "trigger_text": bearish["condition"],
-            "targets": bearish.get("targets", []),
-            "stop_price": bearish.get("invalidation", ""),
-            "rationale": bearish.get("probability_comment", ""),
-            "opened_at": None,
-            "closed_at": None,
-            "outcome_note": "",
-        },
-        {
-            "id": str(uuid4()),
-            "created_at": created_at,
-            "symbol": symbol,
-            "label": "관망 전략 아이디어",
-            "side": "wait",
-            "status": "pending",
-            "status_label": "대기중",
-            "entry_price": "",
-            "trigger_price": None,
-            "trigger_text": neutral["condition"],
-            "targets": neutral.get("range", []),
-            "stop_price": neutral.get("invalidation", ""),
-            "rationale": neutral.get("probability_comment", ""),
-            "opened_at": None,
-            "closed_at": None,
-            "outcome_note": "방향 확정보다는 박스 상하단 반응을 기다리는 전략입니다.",
+            "outcome_note": "방향 확정보다는 조건 충족 여부를 추적하는 전략입니다." if best_side == "wait" else "",
         },
     ]
 
@@ -204,7 +240,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
     return updated
 
 
-def update_strategy_history(latest_report: dict, market_data: dict[str, list[dict]]) -> tuple[list[dict], dict]:
+def update_strategy_history(base_report: dict, latest_report: dict, market_data: dict[str, list[dict]]) -> tuple[list[dict], dict]:
     history_path = DATA_DIR / "strategy_history.json"
     if history_path.exists():
         history = json.loads(history_path.read_text(encoding="utf-8"))
@@ -217,7 +253,7 @@ def update_strategy_history(latest_report: dict, market_data: dict[str, list[dic
         if item.get("status") in {"pending", "open"} else item
         for item in history
     ]
-    updated_history = build_strategy_ideas(latest_report) + updated_history
+    updated_history = build_strategy_ideas(base_report, latest_report) + updated_history
     updated_history = updated_history[:120]
 
     wins = sum(1 for item in updated_history if item.get("status") == "won")
@@ -413,7 +449,7 @@ def main() -> None:
     }
 
     latest_report = merge_llm_fields(latest_report, request_openai_report(latest_report))
-    strategy_history, strategy_summary = update_strategy_history(latest_report, market_data)
+    strategy_history, strategy_summary = update_strategy_history(base_report, latest_report, market_data)
     latest_report["strategy_ideas"] = strategy_history[:3]
     latest_report["strategy_summary"] = strategy_summary
     chart_data = {
