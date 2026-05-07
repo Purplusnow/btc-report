@@ -109,13 +109,18 @@ function renderStrategyMetrics(summary) {
   const stats = summary || {};
   element.innerHTML = `
     <div class="metric-row">
-      <div class="metric-card"><span>총 전략</span><strong>${stats.total ?? 0}</strong></div>
+      <div class="metric-card"><span>초기 자금</span><strong>$${Number(stats.starting_balance ?? 1000).toFixed(2)}</strong></div>
+      <div class="metric-card"><span>현재 잔고</span><strong>$${Number(stats.current_balance ?? 1000).toFixed(2)}</strong></div>
+      <div class="metric-card"><span>누적 손익</span><strong>$${Number(stats.cumulative_pnl ?? 0).toFixed(2)}</strong></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-card"><span>수익률</span><strong>${stats.cumulative_return_pct || "0.00%"}</strong></div>
       <div class="metric-card"><span>승률</span><strong>${stats.win_rate || "0.0%"}</strong></div>
       <div class="metric-card"><span>승 / 패</span><strong>${stats.wins ?? 0} / ${stats.losses ?? 0}</strong></div>
     </div>
     <div class="metric-row">
       <div class="metric-card"><span>대기</span><strong>${stats.pending ?? 0}</strong></div>
-      <div class="metric-card"><span>진행중</span><strong>${stats.open ?? 0}</strong></div>
+      <div class="metric-card"><span>보유중</span><strong>${stats.open ?? 0}</strong></div>
       <div class="metric-card"><span>만료</span><strong>${stats.expired ?? 0}</strong></div>
     </div>
   `;
@@ -138,6 +143,7 @@ function renderStrategyHistory(items) {
       <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
       <strong>${item.symbol || "-"}</strong>
       <p>${item.direction_label || "-"} · 진입 ${item.entry_price || "-"} / 손절 ${item.stop_price || "-"} / 익절 ${item.take_profit || "-"}</p>
+      <p>잔고 $${Number(item.balance_before ?? 0).toFixed(2)} → $${Number(item.balance_after ?? 0).toFixed(2)} / 손익 $${Number(item.pnl_amount ?? 0).toFixed(2)}</p>
       <p>${item.outcome_note || item.trigger_text || FALLBACK_TEXT}</p>
     </li>
   `).join("");

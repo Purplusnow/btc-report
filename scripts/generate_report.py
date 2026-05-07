@@ -21,6 +21,7 @@ from fetch_market import fetch_market_data
 
 DATA_DIR = ROOT_DIR / "data"
 SEOUL = ZoneInfo("Asia/Seoul")
+STARTING_BALANCE = 1000.0
 
 
 def load_style_guide() -> str:
@@ -87,6 +88,16 @@ def build_strategy_review(base_report: dict) -> str:
         f"1시간봉은 {h1.trend}이며 RSI는 {h1_rsi}입니다. "
         f"거래량 해석은 '{h1.volume_comment}'에 가깝습니다."
     )
+
+
+def compute_return_pct(side: str, entry_price: float | None, exit_price: float | None) -> float:
+    if entry_price is None or exit_price is None or entry_price == 0:
+        return 0.0
+    if side == "long":
+        return (exit_price - entry_price) / entry_price
+    if side == "short":
+        return (entry_price - exit_price) / entry_price
+    return 0.0
 
 
 def pick_take_profit(side: str, entry_price: float | None, stop_price: float | None, targets: list[str]) -> str:
@@ -233,6 +244,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
     trigger_price = updated.get("trigger_price")
     stop_price = parse_price(updated.get("stop_price"))
     target_price = parse_price(updated.get("take_profit") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
+    entry_price = parse_price(updated.get("entry_price"))
     created_ts = int(datetime.fromisoformat(updated["created_at"]).timestamp())
     now_dt = datetime.fromisoformat(now)
     if side == "wait":
@@ -269,12 +281,14 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
                     updated["status_label"] = "손절"
                     updated["closed_at"] = candle_time
                     updated["outcome_note"] = f"보유 후 {updated['stop_price']} 이탈로 손절 처리되었습니다."
+                    updated["return_pct"] = compute_return_pct(side, entry_price, stop_price)
                     return updated
                 if target_price is not None and high >= target_price:
                     updated["status"] = "won"
                     updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
                     updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
+                    updated["return_pct"] = compute_return_pct(side, entry_price, target_price)
                     return updated
             elif side == "short":
                 if stop_price is not None and high >= stop_price:
@@ -282,12 +296,14 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
                     updated["status_label"] = "손절"
                     updated["closed_at"] = candle_time
                     updated["outcome_note"] = f"보유 후 {updated['stop_price']} 회복으로 손절 처리되었습니다."
+                    updated["return_pct"] = compute_return_pct(side, entry_price, stop_price)
                     return updated
                 if target_price is not None and low <= target_price:
                     updated["status"] = "won"
                     updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
                     updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
+                    updated["return_pct"] = compute_return_pct(side, entry_price, target_price)
                     return updated
 
     created_dt = datetime.fromisoformat(updated["created_at"])
@@ -296,6 +312,48 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
         updated["status_label"] = "만료"
         updated["outcome_note"] = "48시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
     return updated
+
+
+def apply_balance_curve(history: list[dict]) -> tuple[list[dict], dict]:
+    chronological = sorted(history, key=lambda item: item.get("created_at", ""))
+    balance = STARTING_BALANCE
+
+    for item in chronological:
+        item["balance_before"] = round(balance, 2)
+        status = item.get("status")
+        return_pct = float(item.get("return_pct", 0.0) or 0.0)
+        if status in {"won", "lost"}:
+            pnl_amount = balance * return_pct
+            balance += pnl_amount
+            item["pnl_amount"] = round(pnl_amount, 2)
+            item["balance_after"] = round(balance, 2)
+        else:
+            item["pnl_amount"] = 0.0
+            item["balance_after"] = round(balance, 2)
+
+    updated_history = sorted(chronological, key=lambda item: item.get("created_at", ""), reverse=True)
+    closed = [item for item in chronological if item.get("status") in {"won", "lost"}]
+    wins = sum(1 for item in chronological if item.get("status") == "won")
+    losses = sum(1 for item in chronological if item.get("status") == "lost")
+    pending = sum(1 for item in chronological if item.get("status") == "pending")
+    open_count = sum(1 for item in chronological if item.get("status") == "open")
+    expired = sum(1 for item in chronological if item.get("status") == "expired")
+    win_rate = f"{(wins / len(closed) * 100):.1f}%" if closed else "0.0%"
+    cumulative_pnl = balance - STARTING_BALANCE
+    summary = {
+        "starting_balance": round(STARTING_BALANCE, 2),
+        "current_balance": round(balance, 2),
+        "cumulative_pnl": round(cumulative_pnl, 2),
+        "cumulative_return_pct": f"{(cumulative_pnl / STARTING_BALANCE * 100):.2f}%",
+        "total": len(chronological),
+        "wins": wins,
+        "losses": losses,
+        "pending": pending,
+        "open": open_count,
+        "expired": expired,
+        "win_rate": win_rate,
+    }
+    return updated_history, summary
 
 
 def update_strategy_history(base_report: dict, latest_report: dict, market_data: dict[str, list[dict]]) -> tuple[list[dict], dict]:
@@ -313,24 +371,7 @@ def update_strategy_history(base_report: dict, latest_report: dict, market_data:
     ]
     updated_history = build_strategy_ideas(base_report, latest_report) + updated_history
     updated_history = updated_history[:120]
-
-    wins = sum(1 for item in updated_history if item.get("status") == "won")
-    losses = sum(1 for item in updated_history if item.get("status") == "lost")
-    pending = sum(1 for item in updated_history if item.get("status") == "pending")
-    open_count = sum(1 for item in updated_history if item.get("status") == "open")
-    expired = sum(1 for item in updated_history if item.get("status") == "expired")
-    closed = wins + losses
-    win_rate = f"{(wins / closed * 100):.1f}%" if closed else "0.0%"
-    summary = {
-        "total": len(updated_history),
-        "wins": wins,
-        "losses": losses,
-        "pending": pending,
-        "open": open_count,
-        "expired": expired,
-        "win_rate": win_rate,
-    }
-    return updated_history, summary
+    return apply_balance_curve(updated_history)
 
 
 def build_prompt(base_report: dict) -> str:
@@ -494,6 +535,10 @@ def main() -> None:
         ),
         "strategy_ideas": [],
         "strategy_summary": {
+            "starting_balance": STARTING_BALANCE,
+            "current_balance": STARTING_BALANCE,
+            "cumulative_pnl": 0,
+            "cumulative_return_pct": "0.00%",
             "total": 0,
             "wins": 0,
             "losses": 0,
