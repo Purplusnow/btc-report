@@ -74,6 +74,73 @@ function scenarioTargets(label, values) {
   return `${label}: ${values.join(" / ")}`;
 }
 
+function renderStrategyIdeas(items) {
+  const element = document.getElementById("strategy-ideas");
+  if (!element) {
+    return;
+  }
+
+  const ideas = Array.isArray(items) ? items : [];
+  if (!ideas.length) {
+    element.innerHTML = `<div class="strategy-item wait"><p>${FALLBACK_TEXT}</p></div>`;
+    return;
+  }
+
+  element.innerHTML = ideas.map((idea) => `
+    <div class="strategy-item ${idea.side || "wait"}">
+      <h3>${idea.label || "전략 아이디어"}</h3>
+      <p>${formatReadableParagraphs(`조건: ${idea.trigger_text || FALLBACK_TEXT}`)}</p>
+      <p>${formatReadableParagraphs(`진입 기준가: ${idea.entry_price || "-"}`)}</p>
+      <p>${formatReadableParagraphs(`목표: ${(idea.targets || []).join(" / ") || "-"}`)}</p>
+      <p>${formatReadableParagraphs(`무효화: ${idea.stop_price || "-"}`)}</p>
+      <p>${formatReadableParagraphs(`메모: ${idea.rationale || FALLBACK_TEXT}`)}</p>
+    </div>
+  `).join("");
+}
+
+function renderStrategyMetrics(summary) {
+  const element = document.getElementById("strategy-metrics");
+  if (!element) {
+    return;
+  }
+
+  const stats = summary || {};
+  element.innerHTML = `
+    <div class="metric-row">
+      <div class="metric-card"><span>총 전략</span><strong>${stats.total ?? 0}</strong></div>
+      <div class="metric-card"><span>승률</span><strong>${stats.win_rate || "0.0%"}</strong></div>
+      <div class="metric-card"><span>승 / 패</span><strong>${stats.wins ?? 0} / ${stats.losses ?? 0}</strong></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-card"><span>대기</span><strong>${stats.pending ?? 0}</strong></div>
+      <div class="metric-card"><span>진행중</span><strong>${stats.open ?? 0}</strong></div>
+      <div class="metric-card"><span>만료</span><strong>${stats.expired ?? 0}</strong></div>
+    </div>
+  `;
+}
+
+function renderStrategyHistory(items) {
+  const element = document.getElementById("strategy-history-list");
+  if (!element) {
+    return;
+  }
+
+  const history = Array.isArray(items) ? items : [];
+  if (!history.length) {
+    element.innerHTML = `<li class="history-item">${FALLBACK_TEXT}</li>`;
+    return;
+  }
+
+  element.innerHTML = history.slice(0, 8).map((item) => `
+    <li class="history-item">
+      <span class="history-meta">${formatSeoulTime(item.created_at)} · ${item.label || "-"} · ${item.status_label || item.status || "-"}</span>
+      <strong>${item.symbol || "-"}</strong>
+      <p>진입 ${item.entry_price || "-"} / 목표 ${(item.targets || []).join(" / ") || "-"} / 무효화 ${item.stop_price || "-"}</p>
+      <p>${item.outcome_note || item.trigger_text || FALLBACK_TEXT}</p>
+    </li>
+  `).join("");
+}
+
 function buildChartSeries(dataPoints) {
   return (dataPoints || []).map((candle) => ({
     time: candle.time,
@@ -253,15 +320,17 @@ function createChart(containerId, volumeContainerId, rsiContainerId, candles, ov
 }
 
 async function loadPage() {
-  const [latestResponse, historyResponse, chartResponse] = await Promise.all([
+  const [latestResponse, historyResponse, chartResponse, strategyResponse] = await Promise.all([
     fetch("data/latest.json"),
     fetch("data/history.json"),
-    fetch("data/chart_data.json")
+    fetch("data/chart_data.json"),
+    fetch("data/strategy_history.json")
   ]);
 
   const latest = await latestResponse.json();
   const history = await historyResponse.json();
   const chartData = await chartResponse.json();
+  const strategyHistory = await strategyResponse.json();
 
   const symbol = latest.symbol || "BTCUSDT";
   document.getElementById("page-title").textContent = formatReportTitle(symbol);
@@ -272,6 +341,9 @@ async function loadPage() {
   setText("h1-view", formatReadableParagraphs(latest.h1_view));
   setText("conclusion", formatReadableParagraphs(latest.conclusion));
   setText("disclaimer", latest.disclaimer);
+  renderStrategyIdeas(latest.strategy_ideas || []);
+  renderStrategyMetrics(latest.strategy_summary || {});
+  renderStrategyHistory(strategyHistory || []);
 
   setList("support-levels", latest.key_levels?.support, "분석 대기 중");
   setList("resistance-levels", latest.key_levels?.resistance, "분석 대기 중");
