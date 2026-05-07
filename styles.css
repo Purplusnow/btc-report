@@ -198,6 +198,13 @@ h1 {
   height: 380px;
 }
 
+.chart-volume {
+  height: 130px;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
 .chart-empty {
   display: grid;
   place-items: center;
@@ -349,6 +356,10 @@ li + li {
 
   .chart-container {
     height: 300px;
+  }
+
+  .chart-volume {
+    height: 110px;
   }
 
   .chart-rsi {

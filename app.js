@@ -131,22 +131,25 @@ function renderTrendlines(priceChart, overlays) {
   });
 }
 
-function createChart(containerId, rsiContainerId, candles, overlays) {
+function createChart(containerId, volumeContainerId, rsiContainerId, candles, overlays) {
   const priceContainer = document.getElementById(containerId);
+  const volumeContainer = document.getElementById(volumeContainerId);
   const rsiContainer = document.getElementById(rsiContainerId);
 
-  if (!priceContainer || !rsiContainer) {
+  if (!priceContainer || !volumeContainer || !rsiContainer) {
     return;
   }
 
   if (!window.LightweightCharts) {
     setChartError(priceContainer, "차트 라이브러리를 불러오지 못했습니다.");
+    setChartError(volumeContainer, "거래량 차트를 불러오지 못했습니다.");
     setChartError(rsiContainer, "RSI 차트를 불러오지 못했습니다.");
     return;
   }
 
   if (!Array.isArray(candles) || candles.length === 0) {
     setChartError(priceContainer, "가격 데이터가 아직 준비되지 않았습니다.");
+    setChartError(volumeContainer, "거래량 데이터가 아직 준비되지 않았습니다.");
     setChartError(rsiContainer, "RSI 데이터가 아직 준비되지 않았습니다.");
     return;
   }
@@ -184,17 +187,20 @@ function createChart(containerId, rsiContainerId, candles, overlays) {
     });
     candleSeries.setData(buildChartSeries(candles));
 
-    const volumeSeries = priceChart.addHistogramSeries({
+    const volumeChart = LightweightCharts.createChart(volumeContainer, {
+      ...commonLayout,
+      width: volumeContainer.clientWidth,
+      height: volumeContainer.clientHeight
+    });
+
+    const volumeSeries = volumeChart.addHistogramSeries({
       priceFormat: { type: "volume" },
-      priceScaleId: "",
-      scaleMargins: {
-        top: 0.78,
-        bottom: 0
-      }
+      color: "rgba(20, 63, 107, 0.35)"
     });
     volumeSeries.setData(buildVolumeSeries(candles));
     renderTrendlines(priceChart, overlays);
     priceChart.timeScale().fitContent();
+    volumeChart.timeScale().fitContent();
 
     const rsiChart = LightweightCharts.createChart(rsiContainer, {
       ...commonLayout,
@@ -227,6 +233,10 @@ function createChart(containerId, rsiContainerId, candles, overlays) {
         width: priceContainer.clientWidth,
         height: priceContainer.clientHeight
       });
+      volumeChart.applyOptions({
+        width: volumeContainer.clientWidth,
+        height: volumeContainer.clientHeight
+      });
       rsiChart.applyOptions({
         width: rsiContainer.clientWidth,
         height: rsiContainer.clientHeight
@@ -237,6 +247,7 @@ function createChart(containerId, rsiContainerId, candles, overlays) {
   } catch (error) {
     console.error(`Failed to render chart for ${containerId}.`, error);
     setChartError(priceContainer);
+    setChartError(volumeContainer, "거래량 차트 렌더링에 실패했습니다.");
     setChartError(rsiContainer, "RSI 차트 렌더링에 실패했습니다.");
   }
 }
@@ -301,18 +312,21 @@ async function loadPage() {
 
   createChart(
     "chart-1d-price",
+    "chart-1d-volume",
     "chart-1d-rsi",
     chartData.timeframes?.["1d"] || [],
     chartData.overlays?.["1d"] || {}
   );
   createChart(
     "chart-4h-price",
+    "chart-4h-volume",
     "chart-4h-rsi",
     chartData.timeframes?.["4h"] || [],
     chartData.overlays?.["4h"] || {}
   );
   createChart(
     "chart-1h-price",
+    "chart-1h-volume",
     "chart-1h-rsi",
     chartData.timeframes?.["1h"] || [],
     chartData.overlays?.["1h"] || {}
