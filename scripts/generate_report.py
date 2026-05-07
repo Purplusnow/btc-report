@@ -170,8 +170,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     trigger_token = extract_first_price(chosen.get("condition", ""))
     stop_token = extract_first_price(chosen.get("invalidation", ""))
     targets = chosen.get("targets", chosen.get("range", []))
-    take_profit_1 = targets[0] if len(targets) >= 1 else ""
-    take_profit_2 = targets[1] if len(targets) >= 2 else ""
+    take_profit = targets[0] if len(targets) >= 1 else ""
     review_note = build_strategy_review(base_report)
     return [
         {
@@ -186,8 +185,7 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
             "trigger_price": parse_price(trigger_token),
             "trigger_text": chosen.get("condition", ""),
             "targets": targets,
-            "take_profit_1": take_profit_1,
-            "take_profit_2": take_profit_2,
+            "take_profit": take_profit,
             "stop_price": stop_token,
             "rationale": f"{chosen.get('probability_comment', '')} {confidence_note}".strip(),
             "opened_at": None,
@@ -203,7 +201,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
     side = updated.get("side")
     trigger_price = updated.get("trigger_price")
     stop_price = parse_price(updated.get("stop_price"))
-    target_price = parse_price(updated.get("take_profit_1") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
+    target_price = parse_price(updated.get("take_profit") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
     created_ts = int(datetime.fromisoformat(updated["created_at"]).timestamp())
     now_dt = datetime.fromisoformat(now)
     if side == "wait":
@@ -245,7 +243,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
                     updated["status"] = "won"
                     updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit_1') or updated['targets'][0]}에 도달했습니다."
+                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
                     return updated
             elif side == "short":
                 if stop_price is not None and high >= stop_price:
@@ -258,7 +256,7 @@ def evaluate_strategy(strategy: dict, candles: list[dict], now: str) -> dict:
                     updated["status"] = "won"
                     updated["status_label"] = "익절"
                     updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit_1') or updated['targets'][0]}에 도달했습니다."
+                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
                     return updated
 
     created_dt = datetime.fromisoformat(updated["created_at"])
