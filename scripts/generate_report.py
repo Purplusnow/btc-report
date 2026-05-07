@@ -166,17 +166,45 @@ def main() -> None:
     now = datetime.now(tz=SEOUL).isoformat(timespec="seconds")
     market_data = fetch_market_data(symbol)
     base_report = analyze_market(symbol, market_data)
+    default_conclusion = (
+        "현재는 상위 시간봉 구조와 단기 지지 여부를 함께 확인하는 접근이 더 유리합니다."
+    )
 
     latest_report = {
         "symbol": symbol,
         "updated_at": now,
-        "summary": base_report["summary"],
-        "daily_view": base_report["daily_view"],
-        "h4_view": base_report["h4_view"],
-        "h1_view": base_report["h1_view"],
-        "key_levels": base_report["key_levels"],
-        "scenarios": base_report["scenarios"],
-        "conclusion": base_report["conclusion"],
+        "summary": base_report.get("summary", ""),
+        "daily_view": base_report.get("daily_view", ""),
+        "h4_view": base_report.get("h4_view", ""),
+        "h1_view": base_report.get("h1_view", ""),
+        "key_levels": base_report.get(
+            "key_levels",
+            {"support": [], "resistance": [], "invalidations": []},
+        ),
+        "scenarios": base_report.get(
+            "scenarios",
+            {
+                "bullish": {
+                    "condition": "",
+                    "targets": [],
+                    "invalidation": "",
+                    "probability_comment": "",
+                },
+                "bearish": {
+                    "condition": "",
+                    "targets": [],
+                    "invalidation": "",
+                    "probability_comment": "",
+                },
+                "neutral": {
+                    "condition": "",
+                    "range": [],
+                    "invalidation": "",
+                    "probability_comment": "",
+                },
+            },
+        ),
+        "conclusion": base_report.get("conclusion", default_conclusion),
         "disclaimer": "본 콘텐츠는 투자 조언이 아니며, 모든 투자 판단과 책임은 투자자 본인에게 있습니다.",
     }
 

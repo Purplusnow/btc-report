@@ -327,6 +327,7 @@ def analyze_market(symbol: str, market_data: dict[str, list[dict]]) -> dict:
                 "probability_comment": "방향성 확정보다는 수렴 해석이 우세한 구간이며, 박스 상하단 반응 확인이 중요합니다.",
             },
         },
+        "conclusion": conclusion,
         "meta": {
             "timeframes": {
                 "1d": daily,
