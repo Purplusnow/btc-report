@@ -144,13 +144,6 @@ h1 {
   letter-spacing: 0.12em;
 }
 
-.meta-version {
-  display: block;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
 .section-heading {
   margin: 22px 0 14px;
   color: var(--muted);
@@ -452,6 +445,19 @@ li + li {
   padding-top: 0;
 }
 
+.page-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+  padding-bottom: 8px;
+}
+
+.footer-version {
+  color: rgba(24, 33, 43, 0.42);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
 .history-meta {
   display: block;
   margin-bottom: 6px;
@@ -526,5 +532,9 @@ li + li {
 
   .metric-card span {
     font-size: 0.82rem;
+  }
+
+  .footer-version {
+    font-size: 0.76rem;
   }
 }
