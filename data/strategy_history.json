@@ -1,5 +1,36 @@
 [
   {
+    "id": "722ce18d-9e8a-4420-a018-c9c3e18b147a",
+    "created_at": "2026-05-07T16:28:38+09:00",
+    "symbol": "BTCUSDT",
+    "label": "우세 전략 아이디어 · 상승 우세",
+    "side": "long",
+    "direction_label": "롱",
+    "status": "pending",
+    "status_label": "대기중",
+    "entry_price": "82,850.00",
+    "trigger_price": 82850.0,
+    "trigger_timeframe": "4h",
+    "trigger_type": "close_above",
+    "confirmation_bars": 1,
+    "trigger_text": "4시간봉 종가가 82,850.00 위에서 1개 봉 마감하면 진입",
+    "trigger_text_natural": "82,850.00 상향 돌파 후 4시간봉 종가 안착이 확인될 때",
+    "targets": [
+      "79,485.66",
+      "85,335.50"
+    ],
+    "take_profit": "85,335.50",
+    "stop_price": "80,725.09",
+    "rationale": "상위 시간봉 저점이 유지되는 한 반등 연장 가능성은 열려 있습니다. 다만 82,850.00 돌파 전까지는 단정적 접근보다 조건 확인이 우선이며, 80,725.09 이탈 시 대체 시나리오 비중을 높여야 합니다. 상대적으로 우세한 방향성이 확인되는 편이지만, 무효화 이탈 시 빠른 재평가가 필요합니다.",
+    "opened_at": null,
+    "closed_at": null,
+    "review_note": "일봉은 uptrend, 4시간봉은 impulse-up, 1시간봉은 range이며 RSI는 54.9입니다. 거래량 해석은 '거래량이 줄어들고 있어 추세보다는 수렴 또는 숨 고르기 가능성을 열어둘 필요가 있습니다.'에 가깝습니다.",
+    "outcome_note": "",
+    "balance_before": 1000.0,
+    "pnl_amount": 0.0,
+    "balance_after": 1000.0
+  },
+  {
     "id": "afc22988-675c-46f1-9b94-8cc6c227eade",
     "created_at": "2026-05-07T16:21:12+09:00",
     "symbol": "BTCUSDT",
