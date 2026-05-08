@@ -449,6 +449,8 @@ def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: s
         updated["outcome_note"] = f"{expiry_hours}시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
         return updated
 
+    return updated
+
 
 def apply_balance_curve(history: list[dict]) -> tuple[list[dict], dict]:
     chronological = sorted(history, key=lambda item: item.get("created_at", ""))
