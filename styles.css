@@ -150,65 +150,17 @@ h1 {
 }
 
 .ad-section {
-  margin: 24px 0;
+  margin: 28px 0;
 }
 
 .ad-slot {
-  position: relative;
-  padding: 18px;
-  border-radius: 24px;
-  border: 1px solid rgba(24, 33, 43, 0.1);
-  background: rgba(255, 252, 245, 0.5);
-  box-shadow: var(--shadow);
-}
-
-.ad-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(20, 63, 107, 0.08);
-  color: var(--muted);
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.ad-placeholder {
-  display: grid;
-  place-items: center;
-  min-height: 110px;
-  margin-top: 12px;
-  border: 1px dashed var(--line);
-  border-radius: 18px;
-  color: var(--muted);
-  text-align: center;
-  background: rgba(255, 255, 255, 0.36);
-  font-size: 0.92rem;
+  width: 100%;
 }
 
 .adsbygoogle {
   display: block;
-  min-height: 110px;
-  margin-top: 12px;
+  width: 100%;
   overflow: hidden;
-  border-radius: 18px;
-}
-
-.ad-slot-mid .ad-placeholder {
-  min-height: 140px;
-}
-
-.ad-slot-footer .ad-placeholder {
-  min-height: 120px;
-}
-
-.ad-slot-mid .adsbygoogle {
-  min-height: 140px;
-}
-
-.ad-slot-footer .adsbygoogle {
-  min-height: 120px;
 }
 
 .timeframe-section {
@@ -490,20 +442,6 @@ li + li {
 
   .hero-heading-row {
     align-items: flex-start;
-  }
-
-  .ad-slot {
-    padding: 14px;
-    border-radius: 20px;
-  }
-
-  .ad-placeholder {
-    min-height: 90px;
-    font-size: 0.86rem;
-  }
-
-  .adsbygoogle {
-    min-height: 90px;
   }
 
   .chart-container {
