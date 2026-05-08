@@ -651,12 +651,24 @@ def update_history(latest_report: dict) -> list[dict]:
     return history[:72]
 
 
+def load_existing_version() -> str:
+    latest_path = DATA_DIR / "latest.json"
+    if latest_path.exists():
+        try:
+            latest_data = json.loads(latest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            latest_data = {}
+        existing_version = latest_data.get("version")
+        if existing_version:
+            return str(existing_version)
+    return "Ver. 1.0"
+
+
 def main() -> None:
     symbol = os.getenv("SYMBOL", "BTCUSDT")
     report_timestamp = os.getenv("REPORT_TIMESTAMP")
-    report_version = os.getenv("REPORT_VERSION")
     now = report_timestamp or datetime.now(tz=SEOUL).isoformat(timespec="seconds")
-    version = report_version or datetime.now(tz=SEOUL).strftime("%Y.%m.%d.%H.%M")
+    version = load_existing_version()
     market_data = fetch_market_data(symbol)
     base_report = analyze_market(symbol, market_data)
     default_conclusion = (

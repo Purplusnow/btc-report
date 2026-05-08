@@ -470,7 +470,7 @@ async function loadPage() {
   document.getElementById("page-title").textContent = formatReportTitle(symbol);
   setText("summary", formatReadableParagraphs(latest.summary));
   setText("updated-at", formatSeoulTime(latest.updated_at));
-  setText("report-version", `버전 ${latest.version || "-"}`);
+  setText("report-version", latest.version || "Ver. 1.0");
   setText("daily-view", formatReadableParagraphs(latest.daily_view));
   setText("h4-view", formatReadableParagraphs(latest.h4_view));
   setText("h1-view", formatReadableParagraphs(latest.h1_view));

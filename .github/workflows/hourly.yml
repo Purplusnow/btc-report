@@ -43,10 +43,8 @@ jobs:
         shell: bash
         run: |
           REPORT_TIMESTAMP="$(TZ=Asia/Seoul date '+%Y-%m-%dT%H:%M:%S+09:00')"
-          REPORT_VERSION="$(TZ=Asia/Seoul date '+%Y.%m.%d.%H.%M')"
           REPORT_COMMIT_DATE="$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S +0900')"
           echo "REPORT_TIMESTAMP=$REPORT_TIMESTAMP" >> "$GITHUB_ENV"
-          echo "REPORT_VERSION=$REPORT_VERSION" >> "$GITHUB_ENV"
           echo "REPORT_COMMIT_DATE=$REPORT_COMMIT_DATE" >> "$GITHUB_ENV"
 
       - name: Generate report
