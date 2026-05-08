@@ -197,7 +197,7 @@ function renderStrategyIdeas(items) {
       <h3>${idea.label || "전략 아이디어"}</h3>
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
       <p>${formatReadableParagraphs(`최초 추천 시각: ${createdAtText}`)}</p>
-      <p>${formatReadableParagraphs(`추천 취소 예정시각: ${expiryTime}`)}</p>
+      <p>${formatReadableParagraphs(`추천 취소 예정: ${expiryTime}`)}</p>
       <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
       <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
       <p>${formatReadableParagraphs(`추천 취소 조건: ${cancelDisplayText}`)}</p>
