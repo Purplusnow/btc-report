@@ -501,6 +501,8 @@ def update_strategy_history(base_report: dict, latest_report: dict, market_data:
     else:
         history = []
 
+    history = [item for item in history if isinstance(item, dict)]
+
     now = latest_report["updated_at"]
     updated_history = [
         evaluate_strategy(item, market_data, now)
