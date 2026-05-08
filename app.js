@@ -76,7 +76,7 @@ function formatVersion(isoString) {
   return `${map.year}.${map.month}.${map.day}.${map.hour}.${map.minute}`;
 }
 
-function formatRemainingTime(createdAt, expiryHours = 48) {
+function formatExpiryTime(createdAt, expiryHours = 48) {
   if (!createdAt) {
     return "-";
   }
@@ -87,15 +87,7 @@ function formatRemainingTime(createdAt, expiryHours = 48) {
   }
 
   const deadline = new Date(created.getTime() + expiryHours * 60 * 60 * 1000);
-  const diffMs = deadline.getTime() - Date.now();
-  if (diffMs <= 0) {
-    return "만료됨";
-  }
-
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}시간 ${minutes}분`;
+  return formatSeoulTime(deadline.toISOString());
 }
 
 function formatReportTitle(symbol) {
@@ -199,13 +191,13 @@ function renderStrategyIdeas(items) {
     const riskRewardText = idea.risk_reward ? `${Number(idea.risk_reward).toFixed(2)} : 1` : "-";
     const expiryHours = idea.expiry_hours || 48;
     const createdAtText = formatSeoulTime(idea.created_at);
-    const remainingTime = formatRemainingTime(idea.created_at, expiryHours);
+    const expiryTime = formatExpiryTime(idea.created_at, expiryHours);
     return `
     <div class="strategy-item ${idea.side || "wait"}">
       <h3>${idea.label || "전략 아이디어"}</h3>
       <p>${formatReadableParagraphs(`방향: ${idea.direction_label || "-"}`)}</p>
       <p>${formatReadableParagraphs(`최초 추천 시각: ${createdAtText}`)}</p>
-      <p>${formatReadableParagraphs(`추천 취소까지 남은 시간: ${remainingTime}`)}</p>
+      <p>${formatReadableParagraphs(`추천 취소 예정시각: ${expiryTime}`)}</p>
       <p>${formatReadableParagraphs(`조건 요약: ${naturalText}`)}</p>
       <p>${formatReadableParagraphs(`추적 규칙: ${ruleText}`)}</p>
       <p>${formatReadableParagraphs(`추천 취소 조건: ${cancelDisplayText}`)}</p>
