@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from uuid import uuid4
@@ -331,121 +331,185 @@ def build_strategy_ideas(base_report: dict, latest_report: dict) -> list[dict]:
     ]
 
 
-def trigger_satisfied(strategy: dict, market_data: dict[str, list[dict]]) -> tuple[bool, str | None]:
-    timeframe = strategy.get("trigger_timeframe", "1h")
-    trigger_type = strategy.get("trigger_type")
-    trigger_price = strategy.get("trigger_price")
-    confirmation_bars = int(strategy.get("confirmation_bars", 1) or 1)
-    created_ts = int(datetime.fromisoformat(strategy["created_at"]).timestamp())
-    candles = market_data.get(timeframe, [])
-    relevant = [candle for candle in candles if candle["open_time"] // 1000 >= created_ts]
+def parse_iso_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=SEOUL)
+    return parsed
 
-    if trigger_price is None or trigger_type not in {"close_above", "close_below"}:
-        return False, None
 
+def candle_close_ts(candle: dict) -> int:
+    return int(candle["close_time"] // 1000)
+
+
+def iso_from_ts(timestamp: int) -> str:
+    return datetime.fromtimestamp(timestamp, tz=SEOUL).isoformat(timespec="seconds")
+
+
+def closed_candles_between(candles: list[dict], after_ts: int, until_ts: int) -> list[dict]:
+    return sorted(
+        [
+            candle
+            for candle in candles
+            if after_ts < candle_close_ts(candle) <= until_ts
+        ],
+        key=candle_close_ts,
+    )
+
+
+def close_condition_matched(close_price: float, condition_type: str, level: float | None) -> bool:
+    if level is None:
+        return False
+    if condition_type == "close_above":
+        return close_price > level
+    if condition_type == "close_below":
+        return close_price < level
+    return False
+
+
+def find_close_event(
+    strategy: dict,
+    market_data: dict[str, list[dict]],
+    prefix: str,
+    after_ts: int,
+    until_ts: int,
+    confirmation_bars: int = 1,
+) -> dict | None:
+    timeframe = strategy.get(f"{prefix}_timeframe", "1h")
+    condition_type = strategy.get(f"{prefix}_type")
+    price = parse_price(strategy.get(f"{prefix}_price"))
+    candles = closed_candles_between(market_data.get(timeframe, []), after_ts, until_ts)
     streak = 0
-    for candle in relevant:
-        close_price = candle["close"]
-        matched = close_price > trigger_price if trigger_type == "close_above" else close_price < trigger_price
+
+    if price is None or condition_type not in {"close_above", "close_below"}:
+        return None
+
+    for candle in candles:
+        matched = close_condition_matched(candle["close"], condition_type, price)
         streak = streak + 1 if matched else 0
-        if streak >= confirmation_bars:
-            opened_at = datetime.fromtimestamp(candle["close_time"] // 1000, tz=SEOUL).isoformat(timespec="seconds")
-            return True, opened_at
+        if streak >= max(int(confirmation_bars or 1), 1):
+            event_ts = candle_close_ts(candle)
+            return {
+                "timestamp": event_ts,
+                "time": iso_from_ts(event_ts),
+                "candle": candle,
+            }
 
-    return False, None
+    return None
 
 
-def cancel_satisfied(strategy: dict, market_data: dict[str, list[dict]]) -> tuple[bool, str | None]:
-    timeframe = strategy.get("cancel_timeframe", "1h")
-    cancel_type = strategy.get("cancel_type")
-    cancel_price = strategy.get("cancel_price")
-    created_ts = int(datetime.fromisoformat(strategy["created_at"]).timestamp())
-    candles = market_data.get(timeframe, [])
-    relevant = [candle for candle in candles if candle["open_time"] // 1000 >= created_ts]
+def find_entry_event(strategy: dict, market_data: dict[str, list[dict]], after_ts: int, until_ts: int) -> dict | None:
+    return find_close_event(
+        strategy,
+        market_data,
+        "trigger",
+        after_ts,
+        until_ts,
+        int(strategy.get("confirmation_bars", 1) or 1),
+    )
 
-    if cancel_price is None or cancel_type not in {"close_above", "close_below"}:
-        return False, None
 
-    for candle in relevant:
-        close_price = candle["close"]
-        matched = close_price > cancel_price if cancel_type == "close_above" else close_price < cancel_price
-        if matched:
-            canceled_at = datetime.fromtimestamp(candle["close_time"] // 1000, tz=SEOUL).isoformat(timespec="seconds")
-            return True, canceled_at
+def find_cancel_event(strategy: dict, market_data: dict[str, list[dict]], after_ts: int, until_ts: int) -> dict | None:
+    return find_close_event(strategy, market_data, "cancel", after_ts, until_ts)
 
-    return False, None
+
+def find_exit_event(strategy: dict, market_data: dict[str, list[dict]], opened_ts: int, now_ts: int) -> dict | None:
+    side = strategy.get("side")
+    stop_price = parse_price(strategy.get("stop_price"))
+    target_price = parse_price(
+        strategy.get("take_profit")
+        or (strategy.get("targets", [None])[0] if strategy.get("targets") else None)
+    )
+
+    for candle in closed_candles_between(market_data.get("1h", []), opened_ts, now_ts):
+        event_ts = candle_close_ts(candle)
+        high = candle["high"]
+        low = candle["low"]
+
+        if side == "long":
+            stopped = stop_price is not None and low <= stop_price
+            targeted = target_price is not None and high >= target_price
+        elif side == "short":
+            stopped = stop_price is not None and high >= stop_price
+            targeted = target_price is not None and low <= target_price
+        else:
+            return None
+
+        if stopped:
+            return {
+                "status": "lost",
+                "status_label": "손절",
+                "timestamp": event_ts,
+                "time": iso_from_ts(event_ts),
+                "exit_price": stop_price,
+                "note": (
+                    f"보유 후 {strategy.get('stop_price')} 이탈로 손절 처리되었습니다."
+                    if side == "long"
+                    else f"보유 후 {strategy.get('stop_price')} 회복으로 손절 처리되었습니다."
+                ),
+            }
+        if targeted:
+            return {
+                "status": "won",
+                "status_label": "익절",
+                "timestamp": event_ts,
+                "time": iso_from_ts(event_ts),
+                "exit_price": target_price,
+                "note": f"보유 후 익절가 {strategy.get('take_profit') or strategy['targets'][0]}에 도달했습니다.",
+            }
+
+    return None
 
 
 def evaluate_strategy(strategy: dict, market_data: dict[str, list[dict]], now: str) -> dict:
     updated = deepcopy(strategy)
     side = updated.get("side")
-    stop_price = parse_price(updated.get("stop_price"))
-    target_price = parse_price(updated.get("take_profit") or (updated.get("targets", [None])[0] if updated.get("targets") else None))
     entry_price = parse_price(updated.get("entry_price"))
-    created_ts = int(datetime.fromisoformat(updated["created_at"]).timestamp())
-    now_dt = datetime.fromisoformat(now)
-    relevant = [candle for candle in market_data["1h"] if candle["open_time"] // 1000 >= created_ts]
-    opened = updated.get("opened_at") is not None
-
-    for candle in relevant:
-        candle_time = datetime.fromtimestamp(candle["open_time"] // 1000, tz=SEOUL).isoformat(timespec="seconds")
-        high = candle["high"]
-        low = candle["low"]
-
-        if not opened:
-            is_triggered, opened_at = trigger_satisfied(updated, market_data)
-            is_canceled, canceled_at = cancel_satisfied(updated, market_data)
-
-            if is_canceled and canceled_at and (not opened_at or canceled_at <= opened_at):
-                updated["status"] = "canceled"
-                updated["status_label"] = "추천 취소"
-                updated["closed_at"] = canceled_at
-                updated["outcome_note"] = f"진입 전 {updated.get('cancel_text', '무효 조건')}이 충족되어 추천이 취소되었습니다."
-                return updated
-
-            if is_triggered and opened_at:
-                updated["opened_at"] = opened_at
-                updated["status"] = "open"
-                updated["status_label"] = "진행중"
-                opened = True
-
-        if opened:
-            if side == "long":
-                if stop_price is not None and low <= stop_price:
-                    updated["status"] = "lost"
-                    updated["status_label"] = "손절"
-                    updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 {updated['stop_price']} 이탈로 손절 처리되었습니다."
-                    updated["return_pct"] = compute_return_pct(side, entry_price, stop_price)
-                    return updated
-                if target_price is not None and high >= target_price:
-                    updated["status"] = "won"
-                    updated["status_label"] = "익절"
-                    updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
-                    updated["return_pct"] = compute_return_pct(side, entry_price, target_price)
-                    return updated
-            elif side == "short":
-                if stop_price is not None and high >= stop_price:
-                    updated["status"] = "lost"
-                    updated["status_label"] = "손절"
-                    updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 {updated['stop_price']} 회복으로 손절 처리되었습니다."
-                    updated["return_pct"] = compute_return_pct(side, entry_price, stop_price)
-                    return updated
-                if target_price is not None and low <= target_price:
-                    updated["status"] = "won"
-                    updated["status_label"] = "익절"
-                    updated["closed_at"] = candle_time
-                    updated["outcome_note"] = f"보유 후 익절가 {updated.get('take_profit') or updated['targets'][0]}에 도달했습니다."
-                    updated["return_pct"] = compute_return_pct(side, entry_price, target_price)
-                    return updated
-
-    created_dt = datetime.fromisoformat(updated["created_at"])
+    now_dt = parse_iso_datetime(now)
+    now_ts = int(now_dt.timestamp())
+    created_dt = parse_iso_datetime(updated["created_at"])
+    created_ts = int(created_dt.timestamp())
     expiry_hours = int(updated.get("expiry_hours", STRATEGY_EXPIRY_HOURS) or STRATEGY_EXPIRY_HOURS)
-    if updated["status"] == "pending" and (now_dt - created_dt).total_seconds() >= expiry_hours * 3600:
+    expiry_ts = int((created_dt + timedelta(hours=expiry_hours)).timestamp())
+
+    if updated.get("status") == "pending":
+        event_until_ts = min(now_ts, expiry_ts)
+        entry_event = find_entry_event(updated, market_data, created_ts, event_until_ts)
+        cancel_event = find_cancel_event(updated, market_data, created_ts, event_until_ts)
+
+        if cancel_event and (not entry_event or cancel_event["timestamp"] <= entry_event["timestamp"]):
+            updated["status"] = "canceled"
+            updated["status_label"] = "추천 취소"
+            updated["closed_at"] = cancel_event["time"]
+            updated["outcome_note"] = f"진입 전 {updated.get('cancel_text', '무효 조건')}이 충족되어 추천이 취소되었습니다."
+            return updated
+
+        if entry_event:
+            updated["opened_at"] = entry_event["time"]
+            updated["status"] = "open"
+            updated["status_label"] = "진행중"
+        elif now_ts >= expiry_ts:
+            updated["status"] = "expired"
+            updated["status_label"] = "만료"
+            updated["closed_at"] = iso_from_ts(expiry_ts)
+            updated["outcome_note"] = f"{expiry_hours}시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
+            return updated
+
+    if updated.get("status") == "open" and updated.get("opened_at"):
+        opened_ts = int(parse_iso_datetime(updated["opened_at"]).timestamp())
+        exit_event = find_exit_event(updated, market_data, opened_ts, now_ts)
+        if exit_event:
+            updated["status"] = exit_event["status"]
+            updated["status_label"] = exit_event["status_label"]
+            updated["closed_at"] = exit_event["time"]
+            updated["outcome_note"] = exit_event["note"]
+            updated["return_pct"] = compute_return_pct(side, entry_price, exit_event["exit_price"])
+            return updated
+
+    if updated.get("status") == "pending" and now_ts >= expiry_ts:
         updated["status"] = "expired"
         updated["status_label"] = "만료"
+        updated["closed_at"] = iso_from_ts(expiry_ts)
         updated["outcome_note"] = f"{expiry_hours}시간 내 진입 조건이 충족되지 않아 만료 처리되었습니다."
         return updated
 
@@ -511,28 +575,36 @@ def update_strategy_history(base_report: dict, latest_report: dict, market_data:
         if item.get("status") in {"pending", "open"} else item
         for item in history
     ]
+
+    active_items = [
+        item
+        for item in updated_history
+        if item.get("status") in {"pending", "open"}
+    ]
+    if len(active_items) > 1:
+        active_items = sorted(active_items, key=lambda item: item.get("created_at", ""), reverse=True)
+        keep_active = active_items[0]
+        for item in updated_history:
+            if item.get("status") in {"pending", "open"} and item is not keep_active:
+                item["status"] = "canceled"
+                item["status_label"] = "추천 취소"
+                item["closed_at"] = now
+                item["outcome_note"] = "단일 추천 상태 유지를 위해 새 활성 추천보다 오래된 미완료 추천을 취소 처리했습니다."
+
     new_ideas = build_strategy_ideas(base_report, latest_report)
     for idea in new_ideas:
         idea["signature"] = strategy_signature(idea)
 
     normalized_history = []
-    seen_signatures = set()
     for item in updated_history:
-        item_signature = item.get("signature") or strategy_signature(item)
-        item["signature"] = item_signature
-        is_active = item.get("status") in {"pending", "open"}
-        if is_active and item_signature in seen_signatures:
-            continue
-        if is_active:
-            seen_signatures.add(item_signature)
+        item["signature"] = item.get("signature") or strategy_signature(item)
         normalized_history.append(item)
 
-    active_signatures = {
-        item["signature"]
+    has_active_strategy = any(
+        item.get("status") in {"pending", "open"}
         for item in normalized_history
-        if item.get("status") in {"pending", "open"}
-    }
-    ideas_to_add = [idea for idea in new_ideas if idea["signature"] not in active_signatures]
+    )
+    ideas_to_add = [] if has_active_strategy else new_ideas
 
     updated_history = ideas_to_add + normalized_history
     updated_history = updated_history[:120]
