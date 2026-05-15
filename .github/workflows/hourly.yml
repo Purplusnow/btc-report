@@ -1,8 +1,8 @@
 name: Hourly Report
 
 on:
-schedule:
-  - cron: "14,29,44,59 * * * *"
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 concurrency:
